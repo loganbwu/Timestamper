@@ -18,9 +18,6 @@ from PySide6.QtWidgets import (
 )
 from datetime import datetime
 
-
-from PIL import ExifTags
-import piexif
 import exiftool
 
 class MainWindow(QMainWindow):
