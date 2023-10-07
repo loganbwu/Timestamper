@@ -119,7 +119,7 @@ class MainWindow(QMainWindow):
 
         self.iso = QLineEdit()
         self.exposuretime = QLineEdit()
-        self.aperturevalue = QLineEdit()
+        self.fnumber = QLineEdit()
 
         # Preset controls
         self.preset_camera_name = QComboBox(editable=True)
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
         layout_extra.addWidget(QLabel("Exposure time"), 1, 4)
         layout_extra.addWidget(self.exposuretime, 1, 5)
         layout_extra.addWidget(QLabel("Aperture"), 2, 4)
-        layout_extra.addWidget(self.aperturevalue, 2, 5)
+        layout_extra.addWidget(self.fnumber, 2, 5)
         
         # Preset controls
         layout_preset.addWidget(QLabel("Camera preset"), 0, 0, 1, 2)
@@ -291,7 +291,7 @@ class MainWindow(QMainWindow):
                     "LensMake": self.lensmake.text(),
                     "LensModel": self.lensmodel.text(),
                     "FocalLength": self.focallength.text(),
-                    "ApertureValue": self.aperturevalue.text(),
+                    "FNumber": self.fnumber.text(),
                     "ExposureTime": self.exposuretime.text(),
                     "LensSerialNumber": self.lensserialnumber.text(),
                     "Bogus": "1"
