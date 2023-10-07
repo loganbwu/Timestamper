@@ -292,6 +292,7 @@ class MainWindow(QMainWindow):
                     "LensModel": self.lensmodel.text(),
                     "FocalLength": self.focallength.text(),
                     "ApertureValue": self.aperturevalue.text(),
+                    "ExposureTime": self.exposuretime.text(),
                     "LensSerialNumber": self.lensserialnumber.text(),
                     "Bogus": "1"
                 }
