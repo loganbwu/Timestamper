@@ -4,3 +4,4 @@
 # Python related files
 venv/
 __pycache__/
+scratch.py

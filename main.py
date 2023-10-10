@@ -1,6 +1,7 @@
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import Qt, QSettings, QDateTime
 from PySide6.QtGui import QAction, QPixmap, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QCheckBox,
     QLabel,
     QPushButton,
     QMainWindow,
@@ -97,12 +98,11 @@ class MainWindow(QMainWindow):
         subtract_minute.setShortcut(QKeySequence("L"))
         subtract_minute.clicked.connect(self.subtract_minute)
 
-        save = QAction("Save")
         button_save = QPushButton("Save")
         button_save.setShortcut(QKeySequence.StandardKey.Save)
         button_save.setAutoDefault(True)
         button_save.clicked.connect(self.save)
-        # file_menu.addAction()
+        self.amend_mode = QCheckBox("Amend mode")
 
         # Other tags (equipment)
         self.make = QLineEdit()
@@ -160,7 +160,8 @@ class MainWindow(QMainWindow):
         layout_buttons.addWidget(subtract_ten_minutes, 1, 1)
         layout_buttons.addWidget(add_minute, 0, 2)
         layout_buttons.addWidget(subtract_minute, 1, 2)
-        layout_buttons.addWidget(button_save, 0, 3, 2, 1)
+        layout_buttons.addWidget(self.amend_mode, 0, 3)
+        layout_buttons.addWidget(button_save, 1, 3)
 
         # Extra settings for equipment
         layout_extra.addWidget(QLabel("Make"), 0, 0)
@@ -230,6 +231,10 @@ class MainWindow(QMainWindow):
 
         self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.info.setText(self.exif_to_text(self.current_exif))
+        print
+        if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
+            print("Populating form with existing image EXIF")
+            self.populate_exif(self.current_exif)
 
     def adjust_file(self, inc):
         selected_row = self.file_list.currentRow()
@@ -272,8 +277,6 @@ class MainWindow(QMainWindow):
         self.adjust_datetime((0, -1, 0))
 
     def save(self):
-
-        # exif_tags = {v: k for k, v in ExifTags.TAGS.items()}
         if self.current_exif:
             dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:ss")
             offset = self.format_as_offset(self.offsettime.value())
@@ -290,8 +293,7 @@ class MainWindow(QMainWindow):
                     "FocalLength": self.focallength.text(),
                     "FNumber": self.fnumber.text(),
                     "ExposureTime": self.exposuretime.text(),
-                    "LensSerialNumber": self.lensserialnumber.text(),
-                    "Bogus": "1"
+                    "LensSerialNumber": self.lensserialnumber.text()
                 }
             tags_filtered = {k: v for k, v in tags.items() if v != "" and v != None}
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
@@ -311,6 +313,41 @@ class MainWindow(QMainWindow):
             self.adjust_file(+1)
         # Remove selection
         self.file_list.takeItem(selected_row)
+    
+    def populate_exif(self, exif):
+        # Handle simple text fields
+        text_fields = {
+            "Make": self.make,
+            "Model": self.model,
+            "MaxApertureValue": self.maxaperturevalue,
+            "ISO": self.iso,
+            "LensMake": self.lensmake,
+            "LensModel": self.lensmodel,
+            "FocalLength": self.focallength,
+            "FNumber": self.fnumber,
+            "ExposureTime": self.exposuretime,
+            "LensSerialNumber": self.lensserialnumber
+        }
+        for k, v in text_fields.items():
+            if 'EXIF:' + k in exif.keys():
+                value = exif["EXIF:" + k]
+                if isinstance(value, float):
+                    value = round(value, 3) # remove weird FP digits
+                v.setText(str(value))
+        # Handle more complicated fields
+        if "EXIF:DateTimeOriginal" in exif.keys():
+            iso_dt = exif["EXIF:DateTimeOriginal"].replace(":", "-", 2)
+            q_dt = QDateTime.fromString(iso_dt, format=Qt.DateFormat.ISODate)
+            self.datetime.setDateTime(q_dt)
+        if "EXIF:OffsetTimeOriginal" in exif.keys() or "EXIF:OffsetTime" in exif.keys():
+            if "EXIF:OffsetTimeOriginal" in exif.keys():
+                offset_txt = exif["EXIF:OffsetTimeOriginal"]
+            else: 
+                offset_txt = exif["EXIF:OffsetTime"]
+            offset_sign = 1 if offset_txt[0] == "+" else -1
+            offset_hr = int(offset_txt[1:3])
+            offset_min = int(offset_txt[4:6])
+            self.offsettime.setValue(offset_sign * (offset_hr + offset_min/60))
 
     def exif_to_text(self, exif):
         prefixes = []
