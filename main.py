@@ -81,22 +81,22 @@ class MainWindow(QMainWindow):
         ## Control buttons
         add_hour = QPushButton("+01:00 (U)")
         add_hour.setShortcut(QKeySequence("U"))
-        add_hour.clicked.connect(self.add_hour)
+        add_hour.clicked.connect(lambda: self.adjust_datetime((0, 1, 0)))
         subtract_hour = QPushButton("-01:00 (J)")
         subtract_hour.setShortcut(QKeySequence("J"))
-        subtract_hour.clicked.connect(self.subtract_hour)
+        subtract_hour.clicked.connect(lambda: self.adjust_datetime((0, -1, 0)))
         add_ten_minutes = QPushButton("+00:10 (I)")
         add_ten_minutes.setShortcut(QKeySequence("I"))
-        add_ten_minutes.clicked.connect(self.add_ten_minutes)
+        add_ten_minutes.clicked.connect(lambda: self.adjust_datetime((0, 0, 10)))
         subtract_ten_minutes = QPushButton("-00:10 (K)")
         subtract_ten_minutes.setShortcut(QKeySequence("K"))
-        subtract_ten_minutes.clicked.connect(self.subtract_ten_minutes)
+        subtract_ten_minutes.clicked.connect(lambda: self.adjust_datetime((0, 0, -10)))
         add_minute = QPushButton("+00:01 (O)")
         add_minute.setShortcut(QKeySequence("O"))
-        add_minute.clicked.connect(self.add_minute)
+        add_minute.clicked.connect(lambda: self.adjust_datetime((0, 0, 1)))
         subtract_minute = QPushButton("-00:01 (L)")
         subtract_minute.setShortcut(QKeySequence("L"))
-        subtract_minute.clicked.connect(self.subtract_minute)
+        subtract_minute.clicked.connect(lambda: self.adjust_datetime((0, 0, -1)))
 
         button_save = QPushButton("Save")
         button_save.setShortcut(QKeySequence.StandardKey.Save)
@@ -257,24 +257,6 @@ class MainWindow(QMainWindow):
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
         print(f'Setting datetime to {new_dt.toString()}')
         self.datetime.setDateTime(new_dt)
-    
-    def add_minute(self):
-        self.adjust_datetime((0, 0, 1))
-
-    def subtract_minute(self):
-        self.adjust_datetime((0, 0, -1))
-
-    def add_ten_minutes(self):
-        self.adjust_datetime((0, 0, 10))
-
-    def subtract_ten_minutes(self):
-        self.adjust_datetime((0, 0, -10))
-
-    def add_hour(self):
-        self.adjust_datetime((0, 1, 0))
-
-    def subtract_hour(self):
-        self.adjust_datetime((0, -1, 0))
 
     def save(self):
         if self.current_exif:
