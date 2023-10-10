@@ -109,6 +109,7 @@ class MainWindow(QMainWindow):
         button_save.setAutoDefault(True)
         button_save.clicked.connect(self.save)
         self.amend_mode = QCheckBox("Amend mode")
+        self.amend_mode.stateChanged.connect(self.populate_exif_onchange)
 
         # Other tags (equipment)
         self.make = QLineEdit()
@@ -229,8 +230,9 @@ class MainWindow(QMainWindow):
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
                 self.current_exif = et.get_metadata(self.current_path)[0]
                 print(f'Opened EXIF for "{self.current_path}"')
-        except:
+        except Exception as e:
             print(f'Could not open EXIF for "{self.current_path}"')
+            print(e)
             self.current_exif = None
 
         self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
@@ -335,6 +337,10 @@ class MainWindow(QMainWindow):
             offset_hr = int(offset_txt[1:3])
             offset_min = int(offset_txt[4:6])
             self.offsettime.setValue(offset_sign * (offset_hr + offset_min/60))
+
+    def populate_exif_onchange(self, checked):
+        if checked == 2 and self.current_exif:
+            self.populate_exif(self.current_exif)
 
     def exif_to_text(self, exif):
         prefixes = []
