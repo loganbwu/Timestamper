@@ -79,6 +79,12 @@ class MainWindow(QMainWindow):
         self.offsettime.setValue(8)
         
         ## Control buttons
+        add_day = QPushButton("+1d (Y)")
+        add_day.setShortcut(QKeySequence("Y"))
+        add_day.clicked.connect(lambda: self.adjust_datetime((1, 0, 0)))
+        subtract_day = QPushButton("-1d (H)")
+        subtract_day.setShortcut(QKeySequence("H"))
+        subtract_day.clicked.connect(lambda: self.adjust_datetime((-1, 0, 0)))
         add_hour = QPushButton("+01:00 (U)")
         add_hour.setShortcut(QKeySequence("U"))
         add_hour.clicked.connect(lambda: self.adjust_datetime((0, 1, 0)))
@@ -154,14 +160,11 @@ class MainWindow(QMainWindow):
         layout_executable.addWidget(QLabel("exiftool path"))
         layout_executable.addWidget(self.executable)
 
-        layout_buttons.addWidget(add_hour, 0, 0)
-        layout_buttons.addWidget(subtract_hour, 1, 0)
-        layout_buttons.addWidget(add_ten_minutes, 0, 1)
-        layout_buttons.addWidget(subtract_ten_minutes, 1, 1)
-        layout_buttons.addWidget(add_minute, 0, 2)
-        layout_buttons.addWidget(subtract_minute, 1, 2)
-        layout_buttons.addWidget(self.amend_mode, 0, 3)
-        layout_buttons.addWidget(button_save, 1, 3)
+        time_buttons = [add_day, subtract_day, add_hour, subtract_hour, add_ten_minutes, subtract_ten_minutes, add_minute, subtract_minute, self.amend_mode, button_save]
+        for i, x in enumerate(time_buttons):
+            row_ix = i % 2
+            col_ix = i // 2
+            layout_buttons.addWidget(x, row_ix, col_ix)
 
         # Extra settings for equipment
         layout_extra.addWidget(QLabel("Make"), 0, 0)
