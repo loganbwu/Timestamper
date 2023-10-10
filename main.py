@@ -245,6 +245,7 @@ class MainWindow(QMainWindow):
         n_files = self.file_list.count()
         if new_row >= 0 and new_row < n_files:
             self.file_list.setCurrentRow(new_row)
+            self.file_list.setFocus()
     
     def format_as_offset(self, x):
         sign = "+" if x >= 0 else "-"
