@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QWidget,
     QDateTimeEdit,
-    QSpinBox,
+    QDoubleSpinBox,
     QLineEdit,
     QScrollArea,
     QComboBox
@@ -74,7 +74,8 @@ class MainWindow(QMainWindow):
         self.datetime = QDateTimeEdit()
         self.datetime.setDateTime(datetime.now())
 
-        self.offsettime = QSpinBox()
+        self.offsettime = QDoubleSpinBox()
+        self.offsettime.setSingleStep(0.5)
         self.offsettime.setPrefix("GMT+")
         if self.settings.value("offsettime"):
             self.offsettime.setValue(self.settings.value("offsettime"))
