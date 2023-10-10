@@ -79,30 +79,28 @@ class MainWindow(QMainWindow):
         self.offsettime.setValue(8)
         
         ## Control buttons
-        add_day = QPushButton("+1d (Y)")
-        add_day.setShortcut(QKeySequence("Y"))
-        add_day.clicked.connect(lambda: self.adjust_datetime((1, 0, 0)))
-        subtract_day = QPushButton("-1d (H)")
-        subtract_day.setShortcut(QKeySequence("H"))
-        subtract_day.clicked.connect(lambda: self.adjust_datetime((-1, 0, 0)))
-        add_hour = QPushButton("+01:00 (U)")
-        add_hour.setShortcut(QKeySequence("U"))
-        add_hour.clicked.connect(lambda: self.adjust_datetime((0, 1, 0)))
-        subtract_hour = QPushButton("-01:00 (J)")
-        subtract_hour.setShortcut(QKeySequence("J"))
-        subtract_hour.clicked.connect(lambda: self.adjust_datetime((0, -1, 0)))
-        add_ten_minutes = QPushButton("+00:10 (I)")
-        add_ten_minutes.setShortcut(QKeySequence("I"))
-        add_ten_minutes.clicked.connect(lambda: self.adjust_datetime((0, 0, 10)))
-        subtract_ten_minutes = QPushButton("-00:10 (K)")
-        subtract_ten_minutes.setShortcut(QKeySequence("K"))
-        subtract_ten_minutes.clicked.connect(lambda: self.adjust_datetime((0, 0, -10)))
-        add_minute = QPushButton("+00:01 (O)")
-        add_minute.setShortcut(QKeySequence("O"))
-        add_minute.clicked.connect(lambda: self.adjust_datetime((0, 0, 1)))
-        subtract_minute = QPushButton("-00:01 (L)")
-        subtract_minute.setShortcut(QKeySequence("L"))
-        subtract_minute.clicked.connect(lambda: self.adjust_datetime((0, 0, -1)))
+        dt_control_list = [
+            ["+1d", "Y", [1, 0, 0]],
+            ["-1d", "H", (-1, 0, 0)],
+            ["+01:00", "U", (0, 1, 0)],
+            ["-01:00", "J", (0, -1, 0)],
+            ["+00:10", "I", (0, 0, 10)],
+            ["-00:10", "K", (0, 0, -10)],
+            ["+00:01", "O", (0, 0, 1)],
+            ["-00:01", "L", (0, 0, -1)],
+        ]
+        dt_buttons = [QPushButton(x[0] + " (" + x[1] + ")") for x in dt_control_list]
+        for i in range(len(dt_buttons)):
+            dt_buttons[i].setShortcut(QKeySequence(dt_control_list[i][1]))
+        # Dunno why this doesn't work in a for loop when the rest does
+        dt_buttons[0].clicked.connect(lambda: self.adjust_datetime(dt_control_list[0][2]))
+        dt_buttons[1].clicked.connect(lambda: self.adjust_datetime(dt_control_list[1][2]))
+        dt_buttons[2].clicked.connect(lambda: self.adjust_datetime(dt_control_list[2][2]))
+        dt_buttons[3].clicked.connect(lambda: self.adjust_datetime(dt_control_list[3][2]))
+        dt_buttons[4].clicked.connect(lambda: self.adjust_datetime(dt_control_list[4][2]))
+        dt_buttons[5].clicked.connect(lambda: self.adjust_datetime(dt_control_list[5][2]))
+        dt_buttons[6].clicked.connect(lambda: self.adjust_datetime(dt_control_list[6][2]))
+        dt_buttons[7].clicked.connect(lambda: self.adjust_datetime(dt_control_list[7][2]))
 
         button_save = QPushButton("Save")
         button_save.setShortcut(QKeySequence.StandardKey.Save)
@@ -142,7 +140,7 @@ class MainWindow(QMainWindow):
         self.preset_lens_remove = QPushButton("Remove")
         self.preset_lens_remove.clicked.connect(self.remove_preset_lens)
 
-        # Define layout
+        # Define layouts
         layout_gallery = QHBoxLayout()
         layout_hud = QHBoxLayout()
         layout_executable = QHBoxLayout()
@@ -161,11 +159,9 @@ class MainWindow(QMainWindow):
         layout_executable.addWidget(QLabel("exiftool path"))
         layout_executable.addWidget(self.executable)
 
-        time_buttons = [add_day, subtract_day, add_hour, subtract_hour, add_ten_minutes, subtract_ten_minutes, add_minute, subtract_minute, self.amend_mode, button_save]
-        for i, x in enumerate(time_buttons):
-            row_ix = i % 2
-            col_ix = i // 2
-            layout_buttons.addWidget(x, row_ix, col_ix)
+        # Add datetime adjustment buttons to grid layout
+        for i, x in enumerate(dt_buttons):
+            layout_buttons.addWidget(x, i % 2, i // 2)
 
         # Extra settings for equipment
         layout_extra.addWidget(QLabel("Make"), 0, 0)
