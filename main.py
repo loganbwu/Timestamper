@@ -76,7 +76,9 @@ class MainWindow(QMainWindow):
 
         self.offsettime = QSpinBox()
         self.offsettime.setPrefix("GMT+")
-        self.offsettime.setValue(8)
+        if self.settings.value("offsettime"):
+            self.offsettime.setValue(self.settings.value("offsettime"))
+        self.offsettime.valueChanged.connect(self.save_offsettime)
         
         ## Control buttons
         dt_control_list = [
@@ -451,3 +453,6 @@ class MainWindow(QMainWindow):
         self.settings.remove("preset_lenses")
         print("Cleared presets")
         self.refresh_preset_camera()
+
+    def save_offsettime(self, value):
+        self.settings.setValue("offsettime", value)
