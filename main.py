@@ -218,6 +218,7 @@ class MainWindow(QMainWindow):
         self.file_list.clear()
         self.file_list.addItems(file_selection[0])
         self.file_list.setCurrentRow(0)
+        self.file_list.setFocus()
     
     def select_file_from_list(self, s):
         # Update image
