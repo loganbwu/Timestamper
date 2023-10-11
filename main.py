@@ -76,6 +76,7 @@ class MainWindow(QMainWindow):
 
         self.offsettime = QDoubleSpinBox()
         self.offsettime.setSingleStep(0.5)
+        self.offsettime.setRange(-12, 14)
         self.offsettime.setPrefix("GMT+")
         if self.settings.value("offsettime"):
             self.offsettime.setValue(self.settings.value("offsettime"))
