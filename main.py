@@ -80,6 +80,8 @@ class MainWindow(QMainWindow):
         self.offsettime.setPrefix("GMT+")
         if self.settings.value("offsettime"):
             self.offsettime.setValue(self.settings.value("offsettime"))
+            if self.settings.value("offsettime") < 0:
+                self.offsettime.setPrefix("GMT")
         self.offsettime.valueChanged.connect(self.save_offsettime)
         
         ## Control buttons
@@ -458,3 +460,8 @@ class MainWindow(QMainWindow):
 
     def save_offsettime(self, value):
         self.settings.setValue("offsettime", value)
+        if value >= 0:
+            self.offsettime.setPrefix("GMT+")
+        else:
+            self.offsettime.setPrefix("GMT")
+    
