@@ -381,7 +381,7 @@ class MainWindow(QMainWindow):
                 self.model.setText(get_preset("Model"))
 
     def refresh_preset_camera(self):
-        self.preset_cameras = ["Name": "(None)"] + self.settings.value("preset_cameras")
+        self.preset_cameras = [{"Name": "(None)"}] + self.settings.value("preset_cameras")
         while self.preset_camera_name.count() > 0:
             self.preset_camera_name.removeItem(0)
         if self.preset_cameras:
