@@ -381,7 +381,7 @@ class MainWindow(QMainWindow):
                 self.model.setText(get_preset("Model"))
 
     def refresh_preset_camera(self):
-        self.preset_cameras = self.settings.value("preset_cameras")
+        self.preset_cameras = ["Name": "(None)"] + self.settings.value("preset_cameras")
         while self.preset_camera_name.count() > 0:
             self.preset_camera_name.removeItem(0)
         if self.preset_cameras:
@@ -422,13 +422,15 @@ class MainWindow(QMainWindow):
                 self.maxaperturevalue.setText(get_preset("MaxApertureValue"))
                 self.lensserialnumber.setText(get_preset("LensSerialNumber"))
 
+    # Remove any presets in the list then add from the current saved presets
     def refresh_preset_lens(self):
-        self.preset_lenses = self.settings.value("preset_lenses")
+        self.preset_lenses = [{"Name": "(None)"}] + self.settings.value("preset_lenses")
         while self.preset_lens_name.count() > 0:
             self.preset_lens_name.removeItem(0)
         if self.preset_lenses:
             self.preset_lens_name.addItems([x["Name"] for x in self.preset_lenses])
 
+    # Remove the currently selected lens preset
     def remove_preset_lens(self):
         to_remove = self.preset_lens_name.currentText()
         if self.preset_lenses:
@@ -436,8 +438,9 @@ class MainWindow(QMainWindow):
         self.settings.setValue("preset_lenses", self.preset_lenses)
         self.refresh_preset_lens()
     
+    # Add a new preset to the list
     def add_preset_lens(self):
-        new_lens= {
+        new_lens = {
             "Name": self.preset_lens_name.currentText(),
             "LensMake": self.lensmake.text(),
             "LensModel": self.lensmodel.text(),
