@@ -114,6 +114,8 @@ class MainWindow(QMainWindow):
         button_save.clicked.connect(self.save)
         self.amend_mode = QCheckBox("Amend mode")
         self.amend_mode.stateChanged.connect(self.populate_exif_onchange)
+        dt_buttons.append(self.amend_mode)
+        dt_buttons.append(button_save)
 
         # Other tags (equipment)
         self.make = QLineEdit()
