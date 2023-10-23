@@ -408,7 +408,7 @@ class MainWindow(QMainWindow):
         self.settings.setValue("preset_cameras", self.remove_none_preset(self.preset_cameras))
         current_name = new_camera["Name"]
         self.refresh_preset_camera()
-        self.preset_camera_name.setCurrentText()
+        self.preset_camera_name.setCurrentText(current_name)
 
     def load_preset_lens(self, item):
         if self.preset_lenses:
