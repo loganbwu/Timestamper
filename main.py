@@ -241,7 +241,6 @@ class MainWindow(QMainWindow):
 
         self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.info.setText(self.exif_to_text(self.current_exif))
-        print
         if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
             print("Populating form with existing image EXIF")
             self.populate_exif(self.current_exif)
@@ -263,7 +262,6 @@ class MainWindow(QMainWindow):
         return offset
 
     def adjust_datetime(self, x):
-        print(x)
         d, h, m = x
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
         print(f'Setting datetime to {new_dt.toString()}')
@@ -391,8 +389,7 @@ class MainWindow(QMainWindow):
         to_remove = self.preset_camera_name.currentText()
         if self.preset_cameras:
             self.preset_cameras = [x for x in self.preset_cameras if x["Name"] != to_remove]
-        non_none_presets = [x for x in self.preset_cameras if x["Name"] != "(None)"]
-        self.settings.setValue("preset_cameras", non_none_presets)
+        self.settings.setValue("preset_cameras", self.remove_none_preset(self.preset_cameras))
         self.refresh_preset_camera()
     
     def add_preset_camera(self):
@@ -404,13 +401,14 @@ class MainWindow(QMainWindow):
         if self.preset_cameras:
             self.preset_cameras = [x for x in self.preset_cameras if x["Name"] != new_camera["Name"]]
             self.preset_cameras = [new_camera] + self.preset_cameras
+            self.preset_cameras.sort(key=lambda x: x["Name"]) 
         else:
             self.preset_cameras = [new_camera]
 
-        non_none_presets = [x for x in self.preset_cameras if x["Name"] != "(None)"]
-        self.settings.setValue("preset_cameras", non_none_presets)
+        self.settings.setValue("preset_cameras", self.remove_none_preset(self.preset_cameras))
+        current_name = new_camera["Name"]
         self.refresh_preset_camera()
-        self.preset_camera_name.setCurrentIndex(1)
+        self.preset_camera_name.setCurrentText()
 
     def load_preset_lens(self, item):
         if self.preset_lenses:
@@ -439,8 +437,7 @@ class MainWindow(QMainWindow):
         to_remove = self.preset_lens_name.currentText()
         if self.preset_lenses:
             self.preset_lenses = [x for x in self.preset_lenses if x["Name"] != to_remove]
-        non_none_presets = [x for x in self.preset_lenses if x["Name"] != "(None)"]
-        self.settings.setValue("preset_lenses", non_none_presets)
+        self.settings.setValue("preset_lenses", self.remove_none_preset(self.preset_lenses))
         self.refresh_preset_lens()
     
     # Add a new preset to the list
@@ -457,12 +454,13 @@ class MainWindow(QMainWindow):
         if self.preset_lenses:
             self.preset_lenses = [x for x in self.preset_lenses if x["Name"] != new_lens["Name"]]
             self.preset_lenses = [new_lens] + self.preset_lenses
+            self.preset_lenses.sort(key=lambda x: x["Name"]) 
         else:
             self.preset_lenses = [new_lens]
-        non_none_presets = [x for x in self.preset_lenses if x["Name"] != "(None)"]
-        self.settings.setValue("preset_lenses", non_none_presets)
+        self.settings.setValue("preset_lenses", self.remove_none_preset(self.preset_lenses))
+        current_name = new_lens["Name"]
         self.refresh_preset_lens()
-        self.preset_lens_name.setCurrentIndex(1)
+        self.preset_lens_name.setCurrentText(current_name)
 
     def clear_presets(self):
         self.settings.remove("preset_cameras")
@@ -476,4 +474,7 @@ class MainWindow(QMainWindow):
             self.offsettime.setPrefix("GMT+")
         else:
             self.offsettime.setPrefix("GMT")
-    
+
+    # Remove 'none' elements from presets, mostly before saving
+    def remove_none_preset(self, presets):
+        return [x for x in presets if x["Name"] != "(None)"]
