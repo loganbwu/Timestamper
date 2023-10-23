@@ -229,7 +229,7 @@ class MainWindow(QMainWindow):
         # Update image
         self.current_path = s
         try:
-            # "/Users/wu.l/Pictures/Lightroom/Plugins/LensTagger-1.9.2.lrplugin/bin/exiftool"
+            # "/Users/<USER>/Pictures/Lightroom/Plugins/LensTagger-1.9.2.lrplugin/bin/exiftool"
             print(f'Using {self.settings.value("exiftool")}')
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
                 self.current_exif = et.get_metadata(self.current_path)[0]
@@ -269,7 +269,7 @@ class MainWindow(QMainWindow):
 
     def save(self):
         if self.current_exif:
-            dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:ss")
+            dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:00")
             offset = self.format_as_offset(self.offsettime.value())
             tags = {
                     "DateTimeOriginal": dt,
