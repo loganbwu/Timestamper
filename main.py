@@ -391,7 +391,8 @@ class MainWindow(QMainWindow):
         to_remove = self.preset_camera_name.currentText()
         if self.preset_cameras:
             self.preset_cameras = [x for x in self.preset_cameras if x["Name"] != to_remove]
-        self.settings.setValue("preset_cameras", self.preset_cameras)
+        non_none_presets = [x for x in self.preset_cameras if x["Name"] != "(None)"]
+        self.settings.setValue("preset_cameras", non_none_presets)
         self.refresh_preset_camera()
     
     def add_preset_camera(self):
@@ -405,8 +406,11 @@ class MainWindow(QMainWindow):
             self.preset_cameras = [new_camera] + self.preset_cameras
         else:
             self.preset_cameras = [new_camera]
-        self.settings.setValue("preset_cameras", self.preset_cameras)
+
+        non_none_presets = [x for x in self.preset_cameras if x["Name"] != "(None)"]
+        self.settings.setValue("preset_cameras", non_none_presets)
         self.refresh_preset_camera()
+        self.preset_camera_name.setCurrentIndex(1)
 
     def load_preset_lens(self, item):
         if self.preset_lenses:
@@ -435,7 +439,8 @@ class MainWindow(QMainWindow):
         to_remove = self.preset_lens_name.currentText()
         if self.preset_lenses:
             self.preset_lenses = [x for x in self.preset_lenses if x["Name"] != to_remove]
-        self.settings.setValue("preset_lenses", self.preset_lenses)
+        non_none_presets = [x for x in self.preset_lenses if x["Name"] != "(None)"]
+        self.settings.setValue("preset_lenses", non_none_presets)
         self.refresh_preset_lens()
     
     # Add a new preset to the list
@@ -454,8 +459,10 @@ class MainWindow(QMainWindow):
             self.preset_lenses = [new_lens] + self.preset_lenses
         else:
             self.preset_lenses = [new_lens]
-        self.settings.setValue("preset_lenses", self.preset_lenses)
+        non_none_presets = [x for x in self.preset_lenses if x["Name"] != "(None)"]
+        self.settings.setValue("preset_lenses", non_none_presets)
         self.refresh_preset_lens()
+        self.preset_lens_name.setCurrentIndex(1)
 
     def clear_presets(self):
         self.settings.remove("preset_cameras")
