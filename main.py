@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QWidget,
     QDateTimeEdit,
-    # QDoubleSpinBox,
     QLineEdit,
     QScrollArea,
     QComboBox
@@ -48,7 +47,6 @@ class MainWindow(QMainWindow):
 
         # Define main menu widgets
         self.file_list = QListWidget()
-        # self.file_list.addItems(["/Users/wu.l/Desktop/2023-09-08/IMG_" + x + ".jpg" for x in ["0", "3696", "3697-Edit", "3697", "3708"]])
         self.file_list.currentTextChanged.connect(self.select_file_from_list)
         file_list_scroll = QScrollArea()
         file_list_scroll.setWidget(self.file_list)
@@ -83,9 +81,7 @@ class MainWindow(QMainWindow):
         self.offsettime.setPrefix("GMT")
         if self.settings.value("offsettime"):
             self.offsettime.setValue(self.settings.value("offsettime"))
-            # if self.settings.value("offsettime") < 0:
-            #     self.offsettime.setPrefix("GMT")
-        self.offsettime.valueChanged.connect(self.save_offsettime)
+        self.offsettime.valueChanged.connect(lambda value: self.settings.setValue("offsettime", value))
         
         ## Control buttons
         dt_control_list = [
@@ -416,7 +412,6 @@ class MainWindow(QMainWindow):
             selected_presets = [x for x in self.preset_lenses if x["Name"] == item]
             if selected_presets:
                 preset = selected_presets[0]
-                print(preset)
                 def get_preset(key):
                     return preset[key] if key in preset.keys() else ""
                 self.lensmake.setText(get_preset("LensMake"))
@@ -468,14 +463,6 @@ class MainWindow(QMainWindow):
         self.settings.remove("preset_lenses")
         print("Cleared presets")
         self.refresh_preset_camera()
-
-    def save_offsettime(self, value):
-        self.settings.setValue("offsettime", value)
-        self.offsettime.setPrefix("GMT")
-        # if value >= 0:
-        #     self.offsettime.setPrefix("GMT+")
-        # else:
-        #     self.offsettime.setPrefix("GMT")
 
     # Remove 'none' elements from presets, mostly before saving
     def remove_none_preset(self, presets):
