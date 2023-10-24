@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QComboBox
 )
 from datetime import datetime
+from os import path
+from OffsetSpinBox import DoubleOffsetSpinBox
 
 import exiftool
 
@@ -69,6 +71,7 @@ class MainWindow(QMainWindow):
         info_scroll.setWidgetResizable(True)
 
         self.executable = QLineEdit(self.settings.value("exiftool"))
+        self.executable.setPlaceholderText("Path to exiftool, ending in /bin/exiftool. Install this from exiftool.org.") 
         self.executable.textEdited.connect(self.set_executable)
 
         self.datetime = QDateTimeEdit()
@@ -164,7 +167,7 @@ class MainWindow(QMainWindow):
         layout_hud.addWidget(self.datetime)
         layout_hud.addWidget(self.offsettime)
 
-        layout_executable.addWidget(QLabel("exiftool path"))
+        layout_executable.addWidget(QLabel("exiftool"))
         layout_executable.addWidget(self.executable)
 
         # Add datetime adjustment buttons to grid layout
@@ -228,9 +231,10 @@ class MainWindow(QMainWindow):
     def select_file_from_list(self, s):
         # Update image
         self.current_path = s
+        if not path.isfile(self.settings.value("exiftool")):
+            print("Could not find exiftool at the current path")
         try:
             # "/Users/<USER>/Pictures/Lightroom/Plugins/LensTagger-1.9.2.lrplugin/bin/exiftool"
-            print(f'Using {self.settings.value("exiftool")}')
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
                 self.current_exif = et.get_metadata(self.current_path)[0]
                 print(f'Opened EXIF for "{self.current_path}"')
