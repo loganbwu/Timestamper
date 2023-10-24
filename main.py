@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QWidget,
     QDateTimeEdit,
-    QDoubleSpinBox,
+    # QDoubleSpinBox,
     QLineEdit,
     QScrollArea,
     QComboBox
@@ -77,14 +77,14 @@ class MainWindow(QMainWindow):
         self.datetime = QDateTimeEdit()
         self.datetime.setDateTime(datetime.now())
 
-        self.offsettime = QDoubleSpinBox()
+        self.offsettime = DoubleOffsetSpinBox()
         self.offsettime.setSingleStep(0.5)
         self.offsettime.setRange(-12, 14)
-        self.offsettime.setPrefix("GMT+")
+        self.offsettime.setPrefix("GMT")
         if self.settings.value("offsettime"):
             self.offsettime.setValue(self.settings.value("offsettime"))
-            if self.settings.value("offsettime") < 0:
-                self.offsettime.setPrefix("GMT")
+            # if self.settings.value("offsettime") < 0:
+            #     self.offsettime.setPrefix("GMT")
         self.offsettime.valueChanged.connect(self.save_offsettime)
         
         ## Control buttons
@@ -262,7 +262,8 @@ class MainWindow(QMainWindow):
         x = abs(x)
         hours = int(x)
         minutes = int((x % 1) * 60)
-        offset = f"{sign}{hours:02d}:{minutes:02d}"
+        # offset = f"{sign}{hours:02d}:{minutes:02d}"
+        offset = f"{hours:02d}:{minutes:02d}"
         return offset
 
     def adjust_datetime(self, x):
@@ -274,11 +275,10 @@ class MainWindow(QMainWindow):
     def save(self):
         if self.current_exif:
             dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:00")
-            offset = self.format_as_offset(self.offsettime.value())
             tags = {
                     "DateTimeOriginal": dt,
-                    "OffsetTimeOriginal": offset,
-                    "OffsetTime": offset,
+                    "OffsetTimeOriginal": self.offsettime.textFromValue(self.offsettime.value()),
+                    "OffsetTime": self.offsettime.textFromValue(self.offsettime.value()),
                     "Make": self.make.text(),
                     "Model": self.model.text(),
                     "MaxApertureValue": self.maxaperturevalue.text(),
@@ -339,10 +339,7 @@ class MainWindow(QMainWindow):
                 offset_txt = exif["EXIF:OffsetTimeOriginal"]
             else: 
                 offset_txt = exif["EXIF:OffsetTime"]
-            offset_sign = 1 if offset_txt[0] == "+" else -1
-            offset_hr = int(offset_txt[1:3])
-            offset_min = int(offset_txt[4:6])
-            self.offsettime.setValue(offset_sign * (offset_hr + offset_min/60))
+            self.offsettime.setValue(self.offsettime.valueFromText(offset_txt))
 
     def populate_exif_onchange(self, checked):
         if checked == 2 and self.current_exif:
@@ -474,10 +471,11 @@ class MainWindow(QMainWindow):
 
     def save_offsettime(self, value):
         self.settings.setValue("offsettime", value)
-        if value >= 0:
-            self.offsettime.setPrefix("GMT+")
-        else:
-            self.offsettime.setPrefix("GMT")
+        self.offsettime.setPrefix("GMT")
+        # if value >= 0:
+        #     self.offsettime.setPrefix("GMT+")
+        # else:
+        #     self.offsettime.setPrefix("GMT")
 
     # Remove 'none' elements from presets, mostly before saving
     def remove_none_preset(self, presets):
