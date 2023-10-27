@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
             ["+00:01", "O", (0, 0, 1)],
             ["-00:01", "L", (0, 0, -1)],
         ]
-        dt_buttons = [QPushButton(x[0] + " (" + x[1] + ")") for x in dt_control_list]
+        dt_buttons = [QPushButton(f"{x[0]} ({x[1]})") for x in dt_control_list]
         for i in range(len(dt_buttons)):
             dt_buttons[i].setShortcut(QKeySequence(dt_control_list[i][1]))
         # Dunno why this doesn't work in a for loop when the rest does
@@ -262,11 +262,9 @@ class MainWindow(QMainWindow):
             self.file_list.setFocus()
     
     def format_as_offset(self, x):
-        sign = "+" if x >= 0 else "-"
         x = abs(x)
         hours = int(x)
         minutes = int((x % 1) * 60)
-        # offset = f"{sign}{hours:02d}:{minutes:02d}"
         offset = f"{hours:02d}:{minutes:02d}"
         return offset
 
@@ -313,6 +311,7 @@ class MainWindow(QMainWindow):
         # Remove selection
         self.file_list.takeItem(selected_row)
     
+    # Use EXIF to populated userform fields
     def populate_exif(self, exif):
         # Handle simple text fields
         text_fields = {
@@ -324,16 +323,17 @@ class MainWindow(QMainWindow):
             "LensModel": self.lensmodel,
             "FocalLength": self.focallength,
             "FNumber": self.fnumber,
-            "ExposureTime": self.exposuretime,
             "LensSerialNumber": self.lensserialnumber
         }
         for k, v in text_fields.items():
             if 'EXIF:' + k in exif.keys():
-                value = exif["EXIF:" + k]
+                value = exif[f"EXIF:{k}"]
                 if isinstance(value, float):
                     value = round(value, 3) # remove weird FP digits
                 v.setText(str(value))
         # Handle more complicated fields
+        if "EXIF:ShutterSpeedValue" in exif.keys():
+            self.exposuretime.setText(self.float_to_shutterspeed(exif["EXIF:ShutterSpeedValue"]))
         if "EXIF:DateTimeOriginal" in exif.keys():
             iso_dt = exif["EXIF:DateTimeOriginal"].replace(":", "-", 2)
             q_dt = QDateTime.fromString(iso_dt, format=Qt.DateFormat.ISODate)
@@ -362,9 +362,11 @@ class MainWindow(QMainWindow):
                         prefixes += [prefix]
                 else:
                     name = k.split(":")[1]
-                    res += name + ": " + str(v) + "\n"
+                    if name == "ShutterSpeedValue":
+                        v = f"{self.float_to_shutterspeed(v)}s"
+                    res += f"{name}: {v}\n"
         for prefix in prefixes:
-            res += prefix + ": [truncated]\n"
+            res += f"{prefix}: [truncated]\n"
 
         return res
 
@@ -475,3 +477,10 @@ class MainWindow(QMainWindow):
     # Remove 'none' elements from presets, mostly before saving
     def remove_none_preset(self, presets):
         return [x for x in presets if x["Name"] != "(None)"]
+
+    def float_to_shutterspeed(self, value):
+        if float(value) < 1:
+            inv_shutterspeed = 1/float(value)
+            return(f"1/{inv_shutterspeed:g}")
+        else:
+            return(f"{value:g}")
