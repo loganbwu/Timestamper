@@ -57,13 +57,13 @@ class MainWindow(QMainWindow):
         file_list_up = QShortcut(QKeySequence("key_down"), self)
         file_list_up.activated.connect(lambda inc=-1: self.adjust_file(inc))
 
-        self.pic = QLabel("Picture")
+        self.pic = QLabel("Open one or more pictures to begin.")
         self.pic.setMaximumWidth(560)
         self.pic.setMaximumHeight(480)
         self.current_path = None
         self.current_exif = None
 
-        self.info = QLabel("Info")
+        self.info = QLabel()
         info_scroll = QScrollArea()
         info_scroll.setWidget(self.info)
         info_scroll.setWidgetResizable(True)
@@ -225,10 +225,12 @@ class MainWindow(QMainWindow):
         self.file_list.setFocus()
     
     def select_file_from_list(self, s):
-        # Update image
+        
         self.current_path = s
+        
         if not path.isfile(self.settings.value("exiftool")):
             print("Could not find exiftool at the current path")
+        # Update data view
         try:
             # "/Users/<USER>/Pictures/Lightroom/Plugins/LensTagger-1.9.2.lrplugin/bin/exiftool"
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
@@ -238,12 +240,18 @@ class MainWindow(QMainWindow):
             print(f'Could not open EXIF for "{self.current_path}"')
             print(e)
             self.current_exif = None
+        finally:
+            self.info.setText(self.exif_to_text(self.current_exif))
+            if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
+                print("Populating form with existing image EXIF")
+                self.populate_exif(self.current_exif)
 
-        self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        self.info.setText(self.exif_to_text(self.current_exif))
-        if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
-            print("Populating form with existing image EXIF")
-            self.populate_exif(self.current_exif)
+        # Update image
+        try:
+            self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        except:
+            self.pic.setText("No picture selected.")
+        
 
     def adjust_file(self, inc):
         selected_row = self.file_list.currentRow()
@@ -346,7 +354,7 @@ class MainWindow(QMainWindow):
         if not exif:
             return "No EXIF data"
         res = ""
-        for k, v in exif.items():
+        for k, v in sorted(exif.items()):
             if ":" in k:
                 prefix = k.split(":")[0]
                 if prefix != "EXIF":
