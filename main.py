@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         file_list_up = QShortcut(QKeySequence("key_down"), self)
         file_list_up.activated.connect(lambda inc=-1: self.adjust_file(inc))
 
-        self.pic = QLabel("Open one or more pictures to begin.")
+        self.pic = QLabel("Open pictures to begin.")
         self.pic.setMaximumWidth(560)
         self.pic.setMaximumHeight(480)
         self.current_path = None
