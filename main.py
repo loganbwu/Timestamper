@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         info_scroll.setWidgetResizable(True)
 
         self.executable = QLineEdit(self.settings.value("exiftool"))
-        self.executable.setPlaceholderText("Path to exiftool, ending in /bin/exiftool. Install this from exiftool.org.") 
+        self.executable.setPlaceholderText("Path ending in .../bin/exiftool, from exiftool.org.") 
         self.executable.textEdited.connect(self.set_executable)
 
         self.datetime = QDateTimeEdit()
