@@ -5,8 +5,12 @@
 venv/
 __pycache__/
 scratch.py
+hello.py
 
 # Packaging and distribution
 build/
 dist/
 app.spec
+Resources/
+**.build
+Info.plist
