@@ -14,7 +14,9 @@ from PySide6.QtWidgets import (
     QDateTimeEdit,
     QLineEdit,
     QScrollArea,
-    QComboBox
+    QComboBox,
+    QTreeWidget,
+    QTreeWidgetItem
 )
 from datetime import datetime
 from os import path
@@ -63,7 +65,9 @@ class MainWindow(QMainWindow):
         self.current_path = None
         self.current_exif = None
 
-        self.info = QLabel()
+        self.info = QTreeWidget()
+        self.info.setColumnCount(2)
+        self.info.setHeaderLabels(["Name", "Value"])
         info_scroll = QScrollArea()
         info_scroll.setWidget(self.info)
         info_scroll.setWidgetResizable(True)
@@ -241,7 +245,34 @@ class MainWindow(QMainWindow):
             print(e)
             self.current_exif = None
         finally:
-            self.info.setText(self.exif_to_text(self.current_exif))
+            # Set metadata
+            self.info.clear()
+            data = {}
+            for k, v in sorted(self.current_exif.items()):
+                if ":" in k:
+                    prefix, name = k.split(":")
+                    if name in ["ShutterSpeedValue", "ExposureTime"]:
+                        v = f"{self.float_to_shutterspeed(v)}s"
+                    if prefix in data.keys():
+                        data[prefix].append([name, v])
+                    else:
+                        data[prefix] = [[name, v]]
+            print(data)
+            # EXIF is always first
+            if "EXIF" in data.keys():
+                data = {"EXIF": data.pop("EXIF"), **data}
+            items = []
+            for key, tags in data.items():
+                item = QTreeWidgetItem([key])
+                for tag in tags:
+                    child = QTreeWidgetItem([tag[0], str(tag[1])])
+                    item.addChild(child)
+                items.append(item)
+
+            self.info.addTopLevelItems(items)
+            if items:
+                self.info.topLevelItem(0).setExpanded(True)
+           
             if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
                 print("Populating form with existing image EXIF")
                 self.populate_exif(self.current_exif)
@@ -290,6 +321,7 @@ class MainWindow(QMainWindow):
                     "FocalLength": self.focallength.text(),
                     "FNumber": self.fnumber.text(),
                     "ExposureTime": self.exposuretime.text(),
+                    "ShutterSpeedValue": self.exposuretime.text(),
                     "LensSerialNumber": self.lensserialnumber.text()
                 }
             tags_filtered = {k: v for k, v in tags.items() if v != "" and v != None}
@@ -331,44 +363,28 @@ class MainWindow(QMainWindow):
                 if isinstance(value, float):
                     value = round(value, 3) # remove weird FP digits
                 v.setText(str(value))
+
         # Handle more complicated fields
-        if "EXIF:ShutterSpeedValue" in exif.keys():
-            self.exposuretime.setText(self.float_to_shutterspeed(exif["EXIF:ShutterSpeedValue"]))
+        shutter_keys = ["EXIF:ExposureTime", "EXIF:ShutterSpeedValue"]
+        for k in shutter_keys:
+            if k in exif.keys():
+                self.exposuretime.setText(self.float_to_shutterspeed(exif[k]))
+                break
+
         if "EXIF:DateTimeOriginal" in exif.keys():
             iso_dt = exif["EXIF:DateTimeOriginal"].replace(":", "-", 2)
             q_dt = QDateTime.fromString(iso_dt, format=Qt.DateFormat.ISODate)
             self.datetime.setDateTime(q_dt)
-        if "EXIF:OffsetTimeOriginal" in exif.keys() or "EXIF:OffsetTime" in exif.keys():
-            if "EXIF:OffsetTimeOriginal" in exif.keys():
-                offset_txt = exif["EXIF:OffsetTimeOriginal"]
-            else: 
-                offset_txt = exif["EXIF:OffsetTime"]
-            self.offsettime.setValue(self.offsettime.valueFromText(offset_txt))
+        
+        offsettime_keys = ["EXIF:OffsetTimeOriginal", "EXIF:OffsetTime"]
+        for k in offsettime_keys:
+            if k in exif.keys():
+                self.offsettime.setValue(self.offsettime.valueFromText(offset_txt))
+                break
 
     def populate_exif_onchange(self, checked):
         if checked == 2 and self.current_exif:
             self.populate_exif(self.current_exif)
-
-    def exif_to_text(self, exif):
-        prefixes = []
-        if not exif:
-            return "No EXIF data"
-        res = ""
-        for k, v in sorted(exif.items()):
-            if ":" in k:
-                prefix = k.split(":")[0]
-                if prefix != "EXIF":
-                    if prefix not in prefixes:
-                        prefixes += [prefix]
-                else:
-                    name = k.split(":")[1]
-                    if name == "ShutterSpeedValue":
-                        v = f"{self.float_to_shutterspeed(v)}s"
-                    res += f"{name}: {v}\n"
-        for prefix in prefixes:
-            res += f"{prefix}: [truncated]\n"
-
-        return res
 
     def set_executable(self, path):
         print(f'Setting exiftool path to {path}')
