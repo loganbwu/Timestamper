@@ -379,7 +379,7 @@ class MainWindow(QMainWindow):
         offsettime_keys = ["EXIF:OffsetTimeOriginal", "EXIF:OffsetTime"]
         for k in offsettime_keys:
             if k in exif.keys():
-                self.offsettime.setValue(self.offsettime.valueFromText(offset_txt))
+                self.offsettime.setValue(self.offsettime.valueFromText(exif[k]))
                 break
 
     def populate_exif_onchange(self, checked):

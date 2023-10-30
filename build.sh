@@ -1,1 +1,1 @@
-nuitka3 --standalone --onefile --enable-plugin=pyside6 --macos-create-app-bundle --macos-app-icon=schedule.png app.py --output-filename=Timestamper.app --output-dir=dist --remove-output --macos-app-name=Timestamper
+nuitka3 --standalone --onefile --enable-plugin=pyside6 --macos-create-app-bundle --macos-app-icon=schedule.png --output-filename=Timestamper.app --output-dir=dist --remove-output --macos-app-name=Timestamper --macos-signed-app-name=com.LoganWu.Timestamper --macos-app-mode=gui app.py
