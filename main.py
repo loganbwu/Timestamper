@@ -138,17 +138,17 @@ class MainWindow(QMainWindow):
         self.preset_camera_name = QComboBox(editable=True)
         self.preset_camera_name.currentTextChanged.connect(self.load_preset_camera)
         self.refresh_preset_camera()
-        self.preset_camera_add = QPushButton("Save")
+        self.preset_camera_add = QPushButton("Save camera")
         self.preset_camera_add.clicked.connect(self.add_preset_camera)
-        self.preset_camera_remove = QPushButton("Remove")
+        self.preset_camera_remove = QPushButton("Remove camera")
         self.preset_camera_remove.clicked.connect(self.remove_preset_camera)
 
         self.preset_lens_name = QComboBox(editable=True)
         self.preset_lens_name.currentTextChanged.connect(self.load_preset_lens)
         self.refresh_preset_lens()
-        self.preset_lens_add = QPushButton("Save")
+        self.preset_lens_add = QPushButton("Save lens")
         self.preset_lens_add.clicked.connect(self.add_preset_lens)
-        self.preset_lens_remove = QPushButton("Remove")
+        self.preset_lens_remove = QPushButton("Remove lens")
         self.preset_lens_remove.clicked.connect(self.remove_preset_lens)
 
         # Define layouts
