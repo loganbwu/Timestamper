@@ -231,57 +231,62 @@ class MainWindow(QMainWindow):
     def select_file_from_list(self, s):
         
         self.current_path = s
-        
-        if not path.isfile(self.settings.value("exiftool")):
-            print("Could not find exiftool at the current path")
-        # Update data view
-        try:
-            # "/Users/<USER>/Pictures/Lightroom/Plugins/LensTagger-1.9.2.lrplugin/bin/exiftool"
-            with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                self.current_exif = et.get_metadata(self.current_path)[0]
-                print(f'Opened EXIF for "{self.current_path}"')
-        except Exception as e:
-            print(f'Could not open EXIF for "{self.current_path}"')
-            print(e)
-            self.current_exif = None
-        finally:
-            # Set metadata
-            self.info.clear()
-            data = {}
-            for k, v in sorted(self.current_exif.items()):
-                if ":" in k:
-                    prefix, name = k.split(":")
-                    if name in ["ShutterSpeedValue", "ExposureTime"]:
-                        v = f"{self.float_to_shutterspeed(v)}s"
-                    if prefix in data.keys():
-                        data[prefix].append([name, v])
-                    else:
-                        data[prefix] = [[name, v]]
-            print(data)
-            # EXIF is always first
-            if "EXIF" in data.keys():
-                data = {"EXIF": data.pop("EXIF"), **data}
-            items = []
-            for key, tags in data.items():
-                item = QTreeWidgetItem([key])
-                for tag in tags:
-                    child = QTreeWidgetItem([tag[0], str(tag[1])])
-                    item.addChild(child)
-                items.append(item)
-
-            self.info.addTopLevelItems(items)
-            if items:
-                self.info.topLevelItem(0).setExpanded(True)
-           
-            if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
-                print("Populating form with existing image EXIF")
-                self.populate_exif(self.current_exif)
-
-        # Update image
-        try:
-            self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        except:
+        if self.current_path == "":
+            print("No picture selected.")
             self.pic.setText("No picture selected.")
+
+        elif not path.isfile(self.settings.value("exiftool")):
+            print("Could not find exiftool at the current path")
+
+        # Update data view
+        else:
+            try:
+                # "/Users/<USER>/Pictures/Lightroom/Plugins/LensTagger-1.9.2.lrplugin/bin/exiftool"
+                with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
+                    self.current_exif = et.get_metadata(self.current_path)[0]
+                    print(f'Opened EXIF for "{self.current_path}"')
+            except Exception as e:
+                print(f'Could not open EXIF for "{self.current_path}"')
+                print(e)
+                self.current_exif = None
+            finally:
+                # Set metadata
+                self.info.clear()
+                data = {}
+                if self.current_exif is not None:
+                    for k, v in sorted(self.current_exif.items()):
+                        if ":" in k:
+                            prefix, name = k.split(":")
+                            if name in ["ShutterSpeedValue", "ExposureTime"]:
+                                v = f"{self.float_to_shutterspeed(v)}s"
+                            if prefix in data.keys():
+                                data[prefix].append([name, v])
+                            else:
+                                data[prefix] = [[name, v]]
+                    # EXIF is always first
+                    if "EXIF" in data.keys():
+                        data = {"EXIF": data.pop("EXIF"), **data}
+                    items = []
+                    for key, tags in data.items():
+                        item = QTreeWidgetItem([key])
+                        for tag in tags:
+                            child = QTreeWidgetItem([tag[0], str(tag[1])])
+                            item.addChild(child)
+                        items.append(item)
+
+                    self.info.addTopLevelItems(items)
+                    if items:
+                        self.info.topLevelItem(0).setExpanded(True)
+                
+                    if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
+                        print("Populating form with existing image EXIF")
+                        self.populate_exif(self.current_exif)
+
+            # Update image
+            try:
+                self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            except:
+                self.pic.setText("No picture selected.")
         
 
     def adjust_file(self, inc):
@@ -327,8 +332,7 @@ class MainWindow(QMainWindow):
             tags_filtered = {k: v for k, v in tags.items() if v != "" and v != None}
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
                 et.set_tags(self.current_path, tags = tags_filtered)
-            print(f'Saved EXIF to file.')
-            print(tags_filtered)
+            print(f'Saved EXIF to file: {tags_filtered}')
 
         # Manage post-save list
         selected_row = self.file_list.currentRow()
