@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, QSettings, QDateTime
-from PySide6.QtGui import QAction, QPixmap, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QPixmap, QKeySequence, QShortcut, QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QLabel,
@@ -53,6 +53,8 @@ class MainWindow(QMainWindow):
         file_list_scroll = QScrollArea()
         file_list_scroll.setWidget(self.file_list)
         file_list_scroll.setWidgetResizable(True)
+        self.files_done = [] # remember which files in the list have been done
+        self.done_icon = "✓ "
         
         file_list_down = QShortcut(QKeySequence("key_down"), self)
         file_list_down.activated.connect(lambda inc=1: self.adjust_file(inc))
@@ -223,6 +225,7 @@ class MainWindow(QMainWindow):
     def onLoadFilesButtonClick(self):
         print("Loading files...")
         file_selection = QFileDialog.getOpenFileNames(self, caption="Select images", filter="Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)")
+        self.files_done = [] # Reset markings for complete files
         self.file_list.clear()
         self.file_list.addItems(file_selection[0])
         self.file_list.setCurrentRow(0)
@@ -230,7 +233,15 @@ class MainWindow(QMainWindow):
     
     def select_file_from_list(self, s):
         
-        self.current_path = s
+        # Remove the 'done' tick from the name if present
+        # Files that are 'done' will always have amend_mode used
+        if len(s) >= len(self.done_icon) and s[0:2] == self.done_icon:
+            self.current_path = s[len(self.done_icon):len(s)]
+            is_done = True
+        else:
+            self.current_path = s
+            is_done = False
+
         if self.current_path == "":
             print("No picture selected.")
             self.pic.setText("No picture selected.")
@@ -278,24 +289,26 @@ class MainWindow(QMainWindow):
                     if items:
                         self.info.topLevelItem(0).setExpanded(True)
                 
-                    if self.amend_mode.checkState() == Qt.CheckState.Checked and self.current_exif:
+                    if (self.amend_mode.checkState() == Qt.CheckState.Checked or is_done) and self.current_exif:
                         print("Populating form with existing image EXIF")
                         self.populate_exif(self.current_exif)
 
             # Update image
             try:
-                self.pic.setPixmap(QPixmap(s).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                self.pic.setPixmap(QPixmap(self.current_path).scaled(560, 360, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             except:
                 self.pic.setText("No picture selected.")
-        
+    
+    def set_file(self, i):
+        self.file_list.setCurrentRow(i)
+        self.file_list.setFocus()
 
     def adjust_file(self, inc):
         selected_row = self.file_list.currentRow()
         new_row = selected_row + inc
         n_files = self.file_list.count()
         if new_row >= 0 and new_row < n_files:
-            self.file_list.setCurrentRow(new_row)
-            self.file_list.setFocus()
+            self.set_file(self, new_row)
     
     def format_as_offset(self, x):
         x = abs(x)
@@ -336,16 +349,20 @@ class MainWindow(QMainWindow):
 
         # Manage post-save list
         selected_row = self.file_list.currentRow()
+        if selected_row not in self.files_done:
+            self.file_list.currentItem().setText(self.done_icon + self.file_list.currentItem().text())
+            self.files_done.append(selected_row) # Mark as done
         n_files = self.file_list.count()
-        if n_files == 1:
-            pass
-        # If selection was last, select the previous one
-        elif selected_row+1 == n_files:
-            self.adjust_file(-1)
-        else:
-            self.adjust_file(+1)
-        # Remove selection
-        self.file_list.takeItem(selected_row)
+        search_order_all = [x for x in list(range(selected_row, n_files)) + list(range(selected_row, -1, -1)) if x is not selected_row]
+        search_order_pending = [x for x in search_order_all if x not in self.files_done]
+        # Set to the next pending file if any pending
+        if search_order_pending:
+            self.set_file(search_order_pending[0])
+        # Set to the next file
+        elif selected_row == n_files-1 and n_files > 0:
+            self.set_file(0)
+        elif search_order_all:
+            self.set_file(search_order_all[0])
     
     # Use EXIF to populated userform fields
     def populate_exif(self, exif):
