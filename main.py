@@ -55,11 +55,6 @@ class MainWindow(QMainWindow):
         file_list_scroll.setWidgetResizable(True)
         self.files_done = [] # remember which files in the list have been done
         self.done_icon = "✓ "
-        
-        file_list_down = QShortcut(QKeySequence("key_down"), self)
-        file_list_down.activated.connect(lambda inc=1: self.adjust_file(inc))
-        file_list_up = QShortcut(QKeySequence("key_down"), self)
-        file_list_up.activated.connect(lambda inc=-1: self.adjust_file(inc))
 
         self.pic = QLabel("Open pictures to begin.")
         self.pic.setMaximumWidth(560)
@@ -299,17 +294,6 @@ class MainWindow(QMainWindow):
             except:
                 self.pic.setText("No picture selected.")
     
-    def set_file(self, i):
-        self.file_list.setCurrentRow(i)
-        self.file_list.setFocus()
-
-    def adjust_file(self, inc):
-        selected_row = self.file_list.currentRow()
-        new_row = selected_row + inc
-        n_files = self.file_list.count()
-        if new_row >= 0 and new_row < n_files:
-            self.set_file(self, new_row)
-    
     def format_as_offset(self, x):
         x = abs(x)
         hours = int(x)
@@ -353,16 +337,16 @@ class MainWindow(QMainWindow):
             self.file_list.currentItem().setText(self.done_icon + self.file_list.currentItem().text())
             self.files_done.append(selected_row) # Mark as done
         n_files = self.file_list.count()
-        search_order_all = [x for x in list(range(selected_row, n_files)) + list(range(selected_row, -1, -1)) if x is not selected_row]
-        search_order_pending = [x for x in search_order_all if x not in self.files_done]
-        # Set to the next pending file if any pending
-        if search_order_pending:
-            self.set_file(search_order_pending[0])
-        # Set to the next file
-        elif selected_row == n_files-1 and n_files > 0:
-            self.set_file(0)
-        elif search_order_all:
-            self.set_file(search_order_all[0])
+        prev_row = selected_row - 1
+        next_row = selected_row + 1
+        prev_is_todo = prev_row >= 0 and prev_row not in self.files_done
+        next_is_todo = next_row < n_files and next_row not in self.files_done
+        if next_is_todo:
+            self.file_list.setCurrentRow(next_row)
+        elif prev_is_todo:
+            self.file_list.setCurrentRow(prev_row)
+        elif next_row < n_files:
+            self.file_list.setCurrentRow(next_row)
     
     # Use EXIF to populated userform fields
     def populate_exif(self, exif):
