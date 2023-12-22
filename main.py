@@ -24,6 +24,8 @@ from OffsetSpinBox import DoubleOffsetSpinBox
 
 import exiftool
 
+null_preset_name = "(None)"
+
 class MainWindow(QMainWindow):
 
     def __init__(self):
@@ -387,6 +389,10 @@ class MainWindow(QMainWindow):
                 self.offsettime.setValue(self.offsettime.valueFromText(exif[k]))
                 break
 
+        # Clear preset names. In future could make it try to find a matching preset.
+        self.preset_camera_name.setCurrentText(null_preset_name)
+        self.preset_lens_name.setCurrentText(null_preset_name)
+
     def populate_exif_onchange(self, checked):
         if checked == 2 and self.current_exif:
             self.populate_exif(self.current_exif)
@@ -407,7 +413,7 @@ class MainWindow(QMainWindow):
                 self.model.setText(get_preset("Model"))
 
     def refresh_preset_camera(self):
-        self.preset_cameras = [{"Name": "(None)"}] + self.settings.value("preset_cameras")
+        self.preset_cameras = [{"Name": null_preset_name}] + self.settings.value("preset_cameras")
         while self.preset_camera_name.count() > 0:
             self.preset_camera_name.removeItem(0)
         if self.preset_cameras:
@@ -453,7 +459,7 @@ class MainWindow(QMainWindow):
 
     # Remove any presets in the list then add from the current saved presets
     def refresh_preset_lens(self):
-        self.preset_lenses = [{"Name": "(None)"}] + self.settings.value("preset_lenses")
+        self.preset_lenses = [{"Name": null_preset_name}] + self.settings.value("preset_lenses")
         while self.preset_lens_name.count() > 0:
             self.preset_lens_name.removeItem(0)
         if self.preset_lenses:
@@ -497,7 +503,7 @@ class MainWindow(QMainWindow):
 
     # Remove 'none' elements from presets, mostly before saving
     def remove_none_preset(self, presets):
-        return [x for x in presets if x["Name"] != "(None)"]
+        return [x for x in presets if x["Name"] != null_preset_name]
 
     def float_to_shutterspeed(self, value):
         if float(value) < 1:
