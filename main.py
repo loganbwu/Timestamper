@@ -349,6 +349,9 @@ class MainWindow(QMainWindow):
             self.file_list.setCurrentRow(prev_row)
         elif next_row < n_files:
             self.file_list.setCurrentRow(next_row)
+
+        # Set focus to the file list
+        self.file_list.setFocus()
     
     # Use EXIF to populated userform fields
     def populate_exif(self, exif):
