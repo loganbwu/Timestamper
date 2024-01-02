@@ -8,17 +8,19 @@ Select all images in a folder of scans then use the hotkeys and preset controls 
 
 Current there is no standalone distribution and `requirements.txt` has not been tested.
 
-1. Install Python
-2. Install required packages (if `requirements.txt` doesn't work, inspect `main.py` and `app.py`)
-3. Run `app.py`
+1. Clone or download this repository
+2. Install Exiftool (exiftool.org)
+3. Install Python
+4. (Optional) make a new virtual environment: `python -m venv timestamperenv` `source timestamperenv/bin/activate`
+5. Install required packages: `pip install -r requirements.txt`
 
 ## Usage
 
-1. Install Exiftool (exiftool.org)
+1. Run `app.py`
 2. In the File menu (or hotkey Command/Ctrl + O) load one or more JPEGs or TIFFs from a folder
 3. Preview photos in the file list (handy to match photos against your notes)
 4. Enter the datetime, camera/lens, and exposure info
 5. (Optional) save your camera/lens as a preset, or select a preset
-6. Press Command/Ctrl+S to save EXIF to file. Auto-advances to the next photo (or previous if the next photo is 'ticked' and the previous photo is not)
+6. Press Command/Ctrl+S to save EXIF to file. The tool auto-advances to the next photo (or previous if the next photo is 'ticked' and the previous photo is not) and retains the previous text entries - if you tend to shoot continuously with the same equipment and settings, this will save time.
 7. With the file list selected, use the hotkeys Y-L to quickly adjust the datetime (useful if the files are named alphabetically and chronologically, either forwards or in reverse as provided by some labs)
 8. If you need to amend a previously saved photo, re-selecting a 'ticked' photo will re-load the previously saved EXIF. Similarly, checking 'amend' and selecting any photo will also re-load the EXIF. This can be used copy/paste EXIF by loading it from a photo in 'amend' mode, then selecting a new photo with no EXIF (no EXIF will not overwrite field text in amend mode)
