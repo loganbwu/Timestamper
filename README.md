@@ -9,7 +9,7 @@ Select all images in a folder of scans then use the hotkeys and preset controls 
 Current there is no standalone distribution and `requirements.txt` has not been tested.
 
 1. Install Python
-2. Install required packages
+2. Install required packages (if `requirements.txt` doesn't work, inspect `main.py` and `app.py`)
 3. Run `app.py`
 
 ## Usage
