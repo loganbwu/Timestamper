@@ -26,3 +26,8 @@ Currently there is no standalone distribution as this is developed for personal 
 6. Press Command/Ctrl+S to save EXIF to file. The tool auto-advances to the next photo (or previous if the next photo is 'ticked' and the previous photo is not).
 7. With the file list selected, use the hotkeys Y-L to adjust the datetime.
 8. If you need to amend a previously saved photo, re-selecting a 'ticked' photo will re-populate the previously saved EXIF. Checking 'amend' and selecting any photo will also load and populate EXIF. This can be used duplicate metadata by loading it from a photo in 'amend' mode, then selecting a new photo (missing values will not override field text in amend mode).
+
+## Known issues
+
+- When populating EXIF ('amend' mode or selecting a previously saved image), the preset pickers do not check if the image matches a preset. Workaround is they default to '(None)' while EXIF fields remain populated.
+- In general, the preset input fields (both data fields and preset selectors) might not work as expected. Have a suggestion? Create an *Issue* on Github.
