@@ -16,6 +16,8 @@ Currently there is no standalone distribution as this is developed for personal 
 4. (Optional) make a new virtual environment: `python -m venv timestamperenv` `source timestamperenv/bin/activate`
 5. Install required packages: `pip install -r requirements.txt`
 
+In theory, running `build.sh` with nuitka installed should create a standalone. I've gotten it to work before, but personal circumstances stop me from being able to offer it at the moment.
+
 ## Usage
 
 1. Run `python app.py`
