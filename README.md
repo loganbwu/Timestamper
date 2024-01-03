@@ -4,6 +4,8 @@ Timestamper is a Pyside6 app for adding timestamps and other routine EXIF data t
 
 Select all images in a folder of scans then use the hotkeys and preset controls to rapidly save metadata.
 
+![Screenshot of main screen](https://github.com/loganbwu/Timestamper/blob/main/screenshots/main_screen.png?raw=true)
+
 ## Installation
 
 Currently there is no standalone distribution as this is developed for personal use.
@@ -23,4 +25,4 @@ Currently there is no standalone distribution as this is developed for personal 
 5. (Optional) save your camera/lens as a preset, or select a preset.
 6. Press Command/Ctrl+S to save EXIF to file. The tool auto-advances to the next photo (or previous if the next photo is 'ticked' and the previous photo is not).
 7. With the file list selected, use the hotkeys Y-L to adjust the datetime.
-8. If you need to amend a previously saved photo, re-selecting a 'ticked' photo will re-load the previously saved EXIF. Similarly, checking 'amend' and selecting any photo will also re-load the EXIF. This can be used duplicate EXIF by loading it from a photo in 'amend' mode, then selecting a new photo (missing EXIF will not override field text in amend mode).
+8. If you need to amend a previously saved photo, re-selecting a 'ticked' photo will re-populate the previously saved EXIF. Checking 'amend' and selecting any photo will also load and populate EXIF. This can be used duplicate metadata by loading it from a photo in 'amend' mode, then selecting a new photo (missing values will not override field text in amend mode).
