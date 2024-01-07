@@ -416,7 +416,10 @@ class MainWindow(QMainWindow):
                 self.model.setText(get_preset("Model"))
 
     def refresh_preset_camera(self):
-        self.preset_cameras = [{"Name": null_preset_name}] + self.settings.value("preset_cameras")
+        existing_presets = self.settings.value("preset_cameras")
+        if existing_presets is None:
+            existing_presets = []
+        self.preset_cameras = [{"Name": null_preset_name}] + existing_presets
         while self.preset_camera_name.count() > 0:
             self.preset_camera_name.removeItem(0)
         if self.preset_cameras:
@@ -462,7 +465,10 @@ class MainWindow(QMainWindow):
 
     # Remove any presets in the list then add from the current saved presets
     def refresh_preset_lens(self):
-        self.preset_lenses = [{"Name": null_preset_name}] + self.settings.value("preset_lenses")
+        existing_presets = self.settings.value("preset_lenses")
+        if existing_presets is None:
+            existing_presets = []
+        self.preset_lenses = [{"Name": null_preset_name}] + existing_presets
         while self.preset_lens_name.count() > 0:
             self.preset_lens_name.removeItem(0)
         if self.preset_lenses:
