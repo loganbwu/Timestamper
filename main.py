@@ -174,9 +174,9 @@ class MainWindow(QMainWindow):
             layout_buttons.addWidget(x, i % 2, i // 2)
 
         # Extra settings for equipment
-        layout_extra.addWidget(QLabel("Make"), 0, 0)
+        layout_extra.addWidget(QLabel("Camera make"), 0, 0)
         layout_extra.addWidget(self.make, 0, 1)
-        layout_extra.addWidget(QLabel("Model"), 1, 0)
+        layout_extra.addWidget(QLabel("Camera model"), 1, 0)
         layout_extra.addWidget(self.model, 1, 1)
 
         layout_extra.addWidget(QLabel("Lens make"), 0, 2)
