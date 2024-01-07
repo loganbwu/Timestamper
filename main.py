@@ -38,15 +38,21 @@ class MainWindow(QMainWindow):
         button_loadfiles = QAction("&Open...", self)
         button_loadfiles.setShortcut(QKeySequence.StandardKey.Open)
 
+        action_save = QAction("&Save", self)
+        action_save.setShortcut(QKeySequence.StandardKey.Save)
+        action_save.triggered.connect(self.save)
+
         button_clearpresets = QAction("Clear presets", self)
         button_clearpresets.triggered.connect(self.clear_presets)
 
         button_loadfiles.setStatusTip("Select image files to modify")
         button_loadfiles.triggered.connect(self.onLoadFilesButtonClick)
+        
         menu = self.menuBar()
 
         file_menu = menu.addMenu("File")
         file_menu.addAction(button_loadfiles)
+        file_menu.addAction(action_save)
         file_menu.addAction(button_clearpresets)
 
         # Define main menu widgets
@@ -111,7 +117,6 @@ class MainWindow(QMainWindow):
         dt_buttons[7].clicked.connect(lambda: self.adjust_datetime(dt_control_list[7][2]))
 
         button_save = QPushButton("Save")
-        button_save.setShortcut(QKeySequence.StandardKey.Save)
         button_save.setAutoDefault(True)
         button_save.clicked.connect(self.save)
         self.amend_mode = QCheckBox("Amend mode")
@@ -310,6 +315,8 @@ class MainWindow(QMainWindow):
         self.datetime.setDateTime(new_dt)
 
     def save(self):
+        if self.file_list.currentItem() is None:
+            return
         if self.current_exif:
             dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:00")
             tags = {
