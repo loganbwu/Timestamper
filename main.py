@@ -130,13 +130,22 @@ class MainWindow(QMainWindow):
 
         self.lensmake = QLineEdit()
         self.lensmodel = QLineEdit()
-        self.focallength = QLineEdit()
-        self.maxaperturevalue = QLineEdit()
+        self.widefocallength = QLineEdit()
+        self.widefocallength.textChanged.connect(self.on_widefocallength_change)
+        self.widefocallength.editingFinished.connect(self.on_widefocallength_editingfinished)
+        self.longfocallength = QLineEdit()
+        self.longfocallength.setDisabled(True)
+        self.wideaperturevalue = QLineEdit()
+        self.wideaperturevalue.textChanged.connect(self.on_wideaperturevalue_change)
+        self.wideaperturevalue.editingFinished.connect(self.on_wideaperturevalue_editingfinished)
+        self.longaperturevalue = QLineEdit()
+        self.longaperturevalue.setDisabled(True)
         self.lensserialnumber = QLineEdit()
 
         self.iso = QLineEdit()
         self.exposuretime = QLineEdit()
         self.fnumber = QLineEdit()
+        self.focallength = QLineEdit()
 
         # Preset controls
         self.preset_camera_name = QComboBox(editable=True)
@@ -179,28 +188,39 @@ class MainWindow(QMainWindow):
             layout_buttons.addWidget(x, i % 2, i // 2)
 
         # Extra settings for equipment
-        layout_extra.addWidget(QLabel("Camera make"), 0, 0)
-        layout_extra.addWidget(self.make, 0, 1)
-        layout_extra.addWidget(QLabel("Camera model"), 1, 0)
-        layout_extra.addWidget(self.model, 1, 1)
+        layout_extra.addWidget(QLabel("Camera"), 0, 0, 1, 2)
+        layout_extra.addWidget(QLabel("Camera make"), 1, 0)
+        layout_extra.addWidget(self.make, 1, 1)
+        layout_extra.addWidget(QLabel("Camera model"), 2, 0)
+        layout_extra.addWidget(self.model, 2, 1)
 
-        layout_extra.addWidget(QLabel("Lens make"), 0, 2)
-        layout_extra.addWidget(self.lensmake, 0, 3)
-        layout_extra.addWidget(QLabel("Lens model"), 1, 2)
-        layout_extra.addWidget(self.lensmodel, 1, 3)
-        layout_extra.addWidget(QLabel("Focal length"), 2, 2)
-        layout_extra.addWidget(self.focallength, 2, 3)
-        layout_extra.addWidget(QLabel("Max aperture"), 3, 2)
-        layout_extra.addWidget(self.maxaperturevalue, 3, 3)
-        layout_extra.addWidget(QLabel("Lens serial no."), 4, 2)
-        layout_extra.addWidget(self.lensserialnumber, 4, 3)
+        layout_extra.addWidget(QLabel("Lens"), 0, 2, 1, 2)
+        layout_extra.addWidget(QLabel("Lens make"), 1, 2)
+        layout_extra.addWidget(self.lensmake, 1, 3)
+        layout_extra.addWidget(QLabel("Lens model"), 2, 2)
+        layout_extra.addWidget(self.lensmodel, 2, 3)
+        layout_extra.addWidget(QLabel("Focal length (mm)"), 3, 2)
+        layout_lensinfo_focallength = QGridLayout()
+        layout_lensinfo_focallength.addWidget(self.widefocallength, 0, 1)
+        layout_lensinfo_focallength.addWidget(self.longfocallength, 0, 2)
+        layout_extra.addLayout(layout_lensinfo_focallength, 3, 3)
+        layout_extra.addWidget(QLabel("Aperture (f/)"), 4, 2)
+        layout_lensinfo_longaperture = QGridLayout()
+        layout_lensinfo_longaperture.addWidget(self.wideaperturevalue, 0, 1)
+        layout_lensinfo_longaperture.addWidget(self.longaperturevalue, 0, 2)
+        layout_extra.addLayout(layout_lensinfo_longaperture, 4, 3)
+        layout_extra.addWidget(QLabel("Lens serial no."), 5, 2)
+        layout_extra.addWidget(self.lensserialnumber, 5, 3)
 
-        layout_extra.addWidget(QLabel("ISO"), 0, 4)
-        layout_extra.addWidget(self.iso, 0, 5)
-        layout_extra.addWidget(QLabel("Exposure time"), 1, 4)
-        layout_extra.addWidget(self.exposuretime, 1, 5)
-        layout_extra.addWidget(QLabel("Aperture"), 2, 4)
-        layout_extra.addWidget(self.fnumber, 2, 5)
+        layout_extra.addWidget(QLabel("Exposure"), 0, 4, 1, 2)
+        layout_extra.addWidget(QLabel("ISO"), 1, 4)
+        layout_extra.addWidget(self.iso, 1, 5)
+        layout_extra.addWidget(QLabel("Exposure time"), 2, 4)
+        layout_extra.addWidget(self.exposuretime, 2, 5)
+        layout_extra.addWidget(QLabel("Focal length (mm)"), 3, 4)
+        layout_extra.addWidget(self.focallength, 3, 5)
+        layout_extra.addWidget(QLabel("Aperture (f/)"), 4, 4)
+        layout_extra.addWidget(self.fnumber, 4, 5)
         
         # Preset controls
         layout_preset.addWidget(QLabel("Camera preset"), 0, 0, 1, 2)
@@ -222,6 +242,33 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout_main)
         self.setCentralWidget(widget)
+        
+    
+    def on_widefocallength_change(self, text):
+        if text:
+            self.longfocallength.setEnabled(True)
+        else:
+            self.longfocallength.setDisabled(True)
+            self.longfocallength.setText("")
+            
+    def on_wideaperturevalue_change(self, text):
+        if text:
+            self.longaperturevalue.setEnabled(True)
+            if not self.fnumber.text() and not self.longaperturevalue.text():
+                self.fnumber.setText(text)
+        else:
+            self.longaperturevalue.setDisabled(True)
+            self.longaperturevalue.setText("")
+            
+    def on_widefocallength_editingfinished(self):
+        text = self.widefocallength.text()
+        if text and not self.focallength.text() and not self.longfocallength.text():
+            self.focallength.setText(text)
+            
+    def on_wideaperturevalue_editingfinished(self):
+        text = self.widefocallength.text()
+        if text and not self.fnumber.text() and not self.longaperturevalue.text():
+            self.fnumber.setText(text)
 
 
     def onLoadFilesButtonClick(self):
@@ -230,6 +277,7 @@ class MainWindow(QMainWindow):
         self.files_done = [] # Reset markings for complete files
         self.file_list.clear()
         self.file_list.addItems(file_selection[0])
+        self.file_list.sortItems()
         self.file_list.setCurrentRow(0)
         self.file_list.setFocus()
     
@@ -313,10 +361,37 @@ class MainWindow(QMainWindow):
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
         print(f'Setting datetime to {new_dt.toString()}')
         self.datetime.setDateTime(new_dt)
+        
+    def parse_lensinfo(self, lensinfo):
+        elements = lensinfo.split(" ", 3)
+        if len(elements) != 4:
+            return None
+        def can_be_cast_to_float(x):
+            if x is None:
+                return False
+            try:
+                float(x)
+                return True
+            except ValueError:
+                return False
+        elements = [x if can_be_cast_to_float(x) else None for x in elements]
+        return elements
 
     def save(self):
         if self.file_list.currentItem() is None:
             return
+        # Process LensInfo
+        a = self.widefocallength.text()
+        b = self.longfocallength.text()
+        if a and not b:
+            b = a
+        c = self.wideaperturevalue.text()
+        d = self.longaperturevalue.text()
+        if c and not d:
+            d = c
+        lensinfo = f"{a} {b} {c} {d}"
+        print(lensinfo)
+        
         if self.current_exif:
             dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:00")
             tags = {
@@ -325,15 +400,16 @@ class MainWindow(QMainWindow):
                     "OffsetTime": self.offsettime.textFromValue(self.offsettime.value()),
                     "Make": self.make.text(),
                     "Model": self.model.text(),
-                    "MaxApertureValue": self.maxaperturevalue.text(),
+                    "MaxApertureValue": self.wideaperturevalue.text(),
                     "ISO": self.iso.text(),
                     "LensMake": self.lensmake.text(),
                     "LensModel": self.lensmodel.text(),
-                    "FocalLength": self.focallength.text(),
+                    "LensInfo": lensinfo,
+                    "LensSerialNumber": self.lensserialnumber.text(),
+                    "FocalLength": self.focallength.text().removesuffix("mm"),
                     "FNumber": self.fnumber.text(),
                     "ExposureTime": self.exposuretime.text(),
-                    "ShutterSpeedValue": self.exposuretime.text(),
-                    "LensSerialNumber": self.lensserialnumber.text()
+                    "ShutterSpeedValue": self.exposuretime.text()
                 }
             tags_filtered = {k: v for k, v in tags.items() if v != "" and v != None}
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
@@ -366,7 +442,6 @@ class MainWindow(QMainWindow):
         text_fields = {
             "Make": self.make,
             "Model": self.model,
-            "MaxApertureValue": self.maxaperturevalue,
             "ISO": self.iso,
             "LensMake": self.lensmake,
             "LensModel": self.lensmodel,
@@ -398,6 +473,17 @@ class MainWindow(QMainWindow):
             if k in exif.keys():
                 self.offsettime.setValue(self.offsettime.valueFromText(exif[k]))
                 break
+            
+        if "EXIF:LensInfo" in exif.keys():
+            lensinfo_list = self.parse_lensinfo(exif["EXIF:LensInfo"])
+            if lensinfo_list[0]:
+                self.widefocallength.setText(lensinfo_list[0])
+            if lensinfo_list[1]:
+                self.longfocallength.setText(lensinfo_list[1])
+            if lensinfo_list[2]:
+                self.wideaperturevalue.setText(lensinfo_list[2])
+            if lensinfo_list[3]:
+                self.longaperturevalue.setText(lensinfo_list[3])
 
         # Clear preset names. In future could make it try to find a matching preset.
         self.preset_camera_name.setCurrentText(null_preset_name)
@@ -466,8 +552,10 @@ class MainWindow(QMainWindow):
                     return preset[key] if key in preset.keys() else ""
                 self.lensmake.setText(get_preset("LensMake"))
                 self.lensmodel.setText(get_preset("LensModel"))
-                self.focallength.setText(get_preset("FocalLength"))
-                self.maxaperturevalue.setText(get_preset("MaxApertureValue"))
+                self.widefocallength.setText(get_preset("WideFocalLength"))
+                self.longfocallength.setText(get_preset("LongFocalLength"))
+                self.wideaperturevalue.setText(get_preset("WideApertureValue"))
+                self.longaperturevalue.setText(get_preset("LongApertureValue"))
                 self.lensserialnumber.setText(get_preset("LensSerialNumber"))
 
     # Remove any presets in the list then add from the current saved presets
@@ -495,8 +583,10 @@ class MainWindow(QMainWindow):
             "Name": self.preset_lens_name.currentText(),
             "LensMake": self.lensmake.text(),
             "LensModel": self.lensmodel.text(),
-            "FocalLength": self.focallength.text(),
-            "MaxApertureValue": self.maxaperturevalue.text(),
+            "WideFocalLength": self.widefocallength.text(),
+            "LongFocalLength": self.longfocallength.text(),
+            "WideApertureValue": self.wideaperturevalue.text(),
+            "LongApertureValue": self.longaperturevalue.text(),
             "LensSerialNumber": self.lensserialnumber.text()
         }
         print(f'Adding preset {new_lens["Name"]}')

@@ -14,4 +14,5 @@ class DoubleOffsetSpinBox(QDoubleSpinBox):
         offset_sign = 1 if text[0] == "+" else -1
         offset_hr = int(text[1:3])
         offset_min = int(text[4:6])
-        return(offset_sign * (offset_hr + offset_min/60))
+        value = offset_sign * (offset_hr + offset_min/60)
+        return(value)
