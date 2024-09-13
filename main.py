@@ -204,7 +204,7 @@ class MainWindow(QMainWindow):
         layout_lensinfo_focallength.addWidget(self.widefocallength, 0, 1)
         layout_lensinfo_focallength.addWidget(self.longfocallength, 0, 2)
         layout_extra.addLayout(layout_lensinfo_focallength, 3, 3)
-        layout_extra.addWidget(QLabel("Aperture (f/)"), 4, 2)
+        layout_extra.addWidget(QLabel("Max aperture (f/)"), 4, 2)
         layout_lensinfo_longaperture = QGridLayout()
         layout_lensinfo_longaperture.addWidget(self.wideaperturevalue, 0, 1)
         layout_lensinfo_longaperture.addWidget(self.longaperturevalue, 0, 2)
@@ -215,7 +215,7 @@ class MainWindow(QMainWindow):
         layout_extra.addWidget(QLabel("Exposure"), 0, 4, 1, 2)
         layout_extra.addWidget(QLabel("ISO"), 1, 4)
         layout_extra.addWidget(self.iso, 1, 5)
-        layout_extra.addWidget(QLabel("Exposure time"), 2, 4)
+        layout_extra.addWidget(QLabel("Exposure time (s)"), 2, 4)
         layout_extra.addWidget(self.exposuretime, 2, 5)
         layout_extra.addWidget(QLabel("Focal length (mm)"), 3, 4)
         layout_extra.addWidget(self.focallength, 3, 5)
@@ -285,12 +285,11 @@ class MainWindow(QMainWindow):
         
         # Remove the 'done' tick from the name if present
         # Files that are 'done' will always have amend_mode used
+        is_done = False
+        self.current_path = s
         if len(s) >= len(self.done_icon) and s[0:2] == self.done_icon:
             self.current_path = s[len(self.done_icon):len(s)]
             is_done = True
-        else:
-            self.current_path = s
-            is_done = False
 
         if self.current_path == "":
             print("No picture selected.")
@@ -438,6 +437,10 @@ class MainWindow(QMainWindow):
     
     # Use EXIF to populated userform fields
     def populate_exif(self, exif):
+        # Clear preset names. In future could make it try to find a matching preset.
+        self.preset_camera_name.setCurrentText(null_preset_name)
+        self.preset_lens_name.setCurrentText(null_preset_name)
+        
         # Handle simple text fields
         text_fields = {
             "Make": self.make,
@@ -484,10 +487,6 @@ class MainWindow(QMainWindow):
                 self.wideaperturevalue.setText(lensinfo_list[2])
             if lensinfo_list[3]:
                 self.longaperturevalue.setText(lensinfo_list[3])
-
-        # Clear preset names. In future could make it try to find a matching preset.
-        self.preset_camera_name.setCurrentText(null_preset_name)
-        self.preset_lens_name.setCurrentText(null_preset_name)
 
     def populate_exif_onchange(self, checked):
         if checked == 2 and self.current_exif:
