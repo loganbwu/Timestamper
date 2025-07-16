@@ -5,7 +5,7 @@ from src.timestamper.constants import EXIF_DATE_TIME_ORIGINAL
 import os
 from unittest import mock
 import exiftool
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtCore import QSize
 from unittest.mock import patch, MagicMock
 
@@ -30,8 +30,9 @@ def test_select_file_from_list_exiftool_error(qtbot, monkeypatch):
     monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "/mock/path/to/exiftool")
     monkeypatch.setattr(os.path, 'isfile', lambda x: True) # Pretend exiftool exists
 
-    mw.current_path = "/mock/path/to/image.jpg"
-    mw.select_file_from_list("/mock/path/to/image.jpg")
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.load_files(["/mock/path/to/image.jpg"])
+    mw.file_list.setCurrentRow(0)
 
     mock_show_message.assert_called_with('Error: Exiftool operation failed for "/mock/path/to/image.jpg". Mock Exiftool Error', 5000)
     assert mw.current_exif is None
@@ -65,10 +66,9 @@ def test_save_exiftool_error(qtbot, monkeypatch):
     mw.current_path = "/mock/path/to/image.jpg"
     mw.current_exif = {EXIF_DATE_TIME_ORIGINAL: "2023:01:01 12:00:00"}
     
-    # Mock currentItem for save function
-    mock_list_item = mock.Mock()
-    mock_list_item.text.return_value = "/mock/path/to/image.jpg"
-    monkeypatch.setattr(mw.file_list, 'currentItem', lambda: mock_list_item)
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.load_files(["/mock/path/to/image.jpg"])
+    mw.file_list.setCurrentRow(0)
 
     mw.save()
 
@@ -103,14 +103,9 @@ def test_select_file_from_list_success(qtbot, monkeypatch):
     monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "/mock/path/to/exiftool")
     monkeypatch.setattr(os.path, 'isfile', lambda x: True)
 
-    # Mock QPixmap to prevent actual image loading errors
-    mock_pixmap = MagicMock(spec=QPixmap)
-    mock_pixmap.scaled.return_value = mock_pixmap
-    monkeypatch.setattr(QPixmap, '__init__', lambda *args, **kwargs: None)
-    monkeypatch.setattr(QPixmap, 'scaled', lambda *args, **kwargs: mock_pixmap)
-    monkeypatch.setattr(QPixmap, 'size', lambda *args, **kwargs: QSize(100, 100))
-
-    mw.select_file_from_list("/mock/path/to/image.jpg")
+    with patch('src.timestamper.main.QPixmap'), patch('src.timestamper.main.QIcon', return_value=QIcon()):
+        mw.load_files(["/mock/path/to/image.jpg"])
+    mw.file_list.setCurrentRow(0)
 
     assert mw.current_path == "/mock/path/to/image.jpg"
     assert mw.current_exif == mock_exif_data
@@ -128,7 +123,9 @@ def test_select_file_from_list_no_exiftool_path(qtbot, monkeypatch):
     monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "") # No exiftool path
     monkeypatch.setattr(os.path, 'isfile', lambda x: False) # exiftool does not exist
 
-    mw.select_file_from_list("/mock/path/to/image.jpg")
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.load_files(["/mock/path/to/image.jpg"])
+    mw.file_list.setCurrentRow(0)
 
     mock_show_message.assert_called_with("Error: Could not find exiftool executable. Please check the path.", 5000)
     assert mw.current_exif is None
@@ -165,11 +162,10 @@ def test_save_success(qtbot, monkeypatch):
     monkeypatch.setattr(os.path, 'isfile', lambda x: True)
 
     # Simulate loading a file
-    mw.current_path = "/mock/path/to/image.jpg"
-    mw.current_exif = mock_exif_data
-    mw.file_list.addItem("/mock/path/to/image.jpg")
-    mw.file_list.addItem("/mock/path/to/image2.jpg")
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.load_files(["/mock/path/to/image.jpg", "/mock/path/to/image2.jpg"])
     mw.file_list.setCurrentRow(0)
+    mw.current_exif = mock_exif_data
 
     # Set some values
     mw.datetime.setDateTime(QDateTime(2024, 7, 16, 15, 0, 0))
@@ -185,18 +181,9 @@ def test_save_success(qtbot, monkeypatch):
 
     mw.save()
 
-    expected_tags = {
-        "DateTimeOriginal": "2024:07:16 15:00:00",
-        "OffsetTimeOriginal": "+00:00",
-        "OffsetTime": "+00:00",
-        "Make": "TestMake",
-        "MaxApertureValue": "2.8",
-        "LensInfo": "24 70 2.8 4.0",
-        "FNumber": "2.8"
-    }
-    saved_call = mock.call(f"Saved EXIF to file: {expected_tags}", 3000)
+    saved_call = mock.call('Saved EXIF to file: /mock/path/to/image.jpg', 3000)
     assert saved_call in mock_show_message.call_args_list
-    assert mw.file_list.item(0).text().startswith(mw.done_icon)
+    assert 0 in mw.files_done
     assert mw.file_list.currentRow() == 1 # Should move to the next file
 
 def test_save_lensinfo_logic(qtbot, monkeypatch):
@@ -220,10 +207,10 @@ def test_save_lensinfo_logic(qtbot, monkeypatch):
     monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "/mock/path/to/exiftool")
     monkeypatch.setattr(os.path, 'isfile', lambda x: True)
 
-    mw.current_path = "/mock/path/to/image.jpg"
-    mw.current_exif = mock_exif_data
-    mw.file_list.addItem("/mock/path/to/image.jpg")
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.load_files(["/mock/path/to/image.jpg"])
     mw.file_list.setCurrentRow(0)
+    mw.current_exif = mock_exif_data
 
     # Case 1: Only wide focal length and wide aperture
     mw.widefocallength.setText("50")

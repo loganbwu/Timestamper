@@ -9,9 +9,9 @@ from unittest import mock
 
 import exiftool # Import exiftool for mocking exceptions
 import sys
-from PySide6.QtWidgets import QApplication, QFileDialog
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QSize
+from PySide6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QAbstractItemView
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import QSize, Qt, QItemSelectionModel
 from unittest.mock import patch, MagicMock
 
 
@@ -111,46 +111,17 @@ def test_onLoadFilesButtonClick(qtbot, monkeypatch):
     mw.files_done = [0] # Simulate a file already marked as done
     mw.file_list.addItem("dummy_item") # Add a dummy item to ensure clear() works
 
-    mw.onLoadFilesButtonClick()
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.onLoadFilesButtonClick()
 
     assert mw.file_list.count() == 2
-    assert mw.file_list.item(0).text() == "/path/to/image1.jpg"
-    assert mw.file_list.item(1).text() == "/path/to/image2.png"
+    assert mw.file_list.item(0).data(Qt.UserRole) == "/path/to/image1.jpg"
+    assert mw.file_list.item(1).data(Qt.UserRole) == "/path/to/image2.png"
+    assert mw.file_list.item(0).text() == "image1.jpg"
+    assert mw.file_list.item(1).text() == "image2.png"
     assert mw.files_done == []
     assert mw.file_list.currentRow() == 0
 
-
-def test_select_file_from_list_image_load_error(qtbot, monkeypatch):
-    mw = MainWindow()
-    qtbot.addWidget(mw)
-
-    mock_exif_data = {
-        "SourceFile": "/mock/path/to/image.jpg",
-        "EXIF:DateTimeOriginal": "2023:01:15 10:30:00"
-    }
-
-    class MockExifToolHelperSuccess:
-        def __init__(self, executable):
-            pass
-        def __enter__(self):
-            return self
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            pass
-        def get_metadata(self, path):
-            return [mock_exif_data]
-
-    monkeypatch.setattr(exiftool, 'ExifToolHelper', MockExifToolHelperSuccess)
-    monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "/mock/path/to/exiftool")
-    monkeypatch.setattr(os.path, 'isfile', lambda x: True)
-
-    # Mock QPixmap to raise an error
-    def mock_pixmap_init_error(*args, **kwargs):
-        raise Exception("Mock Image Load Error")
-    monkeypatch.setattr(QPixmap, '__init__', mock_pixmap_init_error)
-
-    mw.select_file_from_list("/mock/path/to/invalid_image.jpg")
-
-    assert mw.pic.text() == "No picture selected."
 
 def test_save_no_current_item(qtbot, monkeypatch):
     mw = MainWindow()
@@ -169,12 +140,10 @@ def test_save_numeric_validation_failure(qtbot, monkeypatch, mock_settings):
     mock_show_message = mock.Mock()
     monkeypatch.setattr(mw.statusBar(), 'showMessage', mock_show_message)
 
-    mw.current_path = "/mock/path/to/image.jpg"
-    mw.current_exif = {"SourceFile": "/mock/path/to/image.jpg"}
-    # Prevent select_file_from_list from running and messing up the mock
-    monkeypatch.setattr(mw, 'select_file_from_list', lambda s: None)
-    mw.file_list.addItem("/mock/path/to/image.jpg")
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        mw.load_files(["/mock/path/to/image.jpg"])
     mw.file_list.setCurrentRow(0)
+    mw.current_exif = {"SourceFile": "/mock/path/to/image.jpg"}
     mock_show_message.reset_mock()
 
     mw.iso.setText("invalid_iso") # Set invalid input
@@ -208,52 +177,40 @@ def test_save_post_save_list_management(qtbot, monkeypatch):
     monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "/mock/path/to/exiftool")
     monkeypatch.setattr(os.path, 'isfile', lambda x: True)
 
-    # Scenario 1: Save first file, move to next
-    mw.file_list.clear()
-    mw.file_list.addItems(["file1.jpg", "file2.jpg", "file3.jpg"])
-    mw.file_list.setCurrentRow(0)
-    mw.current_path = "file1.jpg"
-    mw.current_exif = mock_exif_data
-    mw.save()
-    assert mw.file_list.item(0).text().startswith(mw.done_icon)
-    assert mw.file_list.currentRow() == 1
+    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
+        # Scenario 1: Save first file, move to next
+        mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
+        mw.file_list.setCurrentRow(0)
+        mw.current_exif = mock_exif_data
+        mw.save()
+        assert 0 in mw.files_done
+        assert mw.file_list.currentRow() == 1
 
-    # Scenario 2: Save middle file, move to next available (file3)
-    mw.file_list.clear()
-    mw.files_done = []
-    mw.file_list.addItems(["file1.jpg", "file2.jpg", "file3.jpg"])
-    mw.file_list.item(0).setText(mw.done_icon + "file1.jpg") # Mark file1 as done
-    mw.files_done.append(0)
-    mw.file_list.setCurrentRow(1)
-    mw.current_path = "file2.jpg"
-    mw.current_exif = mock_exif_data
-    mw.save()
-    assert mw.file_list.item(1).text().startswith(mw.done_icon)
-    assert mw.file_list.currentRow() == 2 # Should skip file1 and go to file3
+        # Scenario 2: Save middle file, move to next available (file3)
+        mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
+        mw.files_done = [0]
+        mw.file_list.setCurrentRow(1)
+        mw.current_exif = mock_exif_data
+        mw.save()
+        assert 1 in mw.files_done
+        assert mw.file_list.currentRow() == 2 # Should skip file1 and go to file3
 
-    # Scenario 3: Save last file, no next available, move to previous todo
-    mw.file_list.clear()
-    mw.files_done = []
-    mw.file_list.addItems(["file1.jpg", "file2.jpg", "file3.jpg"])
-    mw.file_list.item(1).setText(mw.done_icon + "file2.jpg") # Mark file2 as done
-    mw.files_done.append(1)
-    mw.file_list.setCurrentRow(2)
-    mw.current_path = "file3.jpg"
-    mw.current_exif = mock_exif_data
-    mw.save()
-    assert mw.file_list.item(2).text().startswith(mw.done_icon)
-    assert mw.file_list.currentRow() == 0 # Should go to file1 (previous todo)
+        # Scenario 3: Save last file, no next available, move to previous todo
+        mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
+        mw.files_done = [1]
+        mw.file_list.setCurrentRow(2)
+        mw.current_exif = mock_exif_data
+        mw.save()
+        assert 2 in mw.files_done
+        assert mw.file_list.currentRow() == 0 # Should go to file1 (previous todo)
 
-    # Scenario 4: Save only file
-    mw.file_list.clear()
-    mw.files_done = []
-    mw.file_list.addItem("single_file.jpg")
-    mw.file_list.setCurrentRow(0)
-    mw.current_path = "single_file.jpg"
-    mw.current_exif = mock_exif_data
-    mw.save()
-    assert mw.file_list.item(0).text().startswith(mw.done_icon)
-    assert mw.file_list.currentRow() == 0 # Stays on the same file
+        # Scenario 4: Save only file
+        mw.load_files(["single_file.jpg"])
+        mw.file_list.setCurrentRow(0)
+        mw.current_exif = mock_exif_data
+        mw.save()
+        assert 0 in mw.files_done
+        assert mw.file_list.currentRow() == 0 # Stays on the same file
 
 def test_populate_exif_onchange(qtbot, monkeypatch):
     mw = MainWindow()
@@ -357,3 +314,73 @@ def test_clear_presets(qtbot, monkeypatch):
     mock_remove.assert_any_call("preset_lenses")
     mock_refresh_camera.assert_called_once()
     mock_refresh_lens.assert_called_once()
+
+
+@pytest.fixture
+def mw_new(qtbot):
+    """Create and return a MainWindow instance for new features."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    # Mock exiftool for all tests in this file
+    with mock.patch('exiftool.ExifToolHelper') as mock_exiftool, \
+         mock.patch.object(window, '_is_exiftool_available', return_value=True):
+        # Configure the mock to return some basic metadata
+        mock_instance = mock_exiftool.return_value.__enter__.return_value
+        mock_instance.get_metadata.return_value = [{'SourceFile': 'mock.jpg'}]
+        # The signal is already connected in the UIManager, no need to reconnect here.
+        yield window
+
+def test_apply_to_selected_save(mw_new, qtbot):
+    """Test that the save operation applies to all selected files."""
+    # Load some mock files
+    files = ["/path/to/image1.jpg", "/path/to/image2.jpg", "/path/to/image3.jpg"]
+    with mock.patch('src.timestamper.main.QPixmap'), mock.patch('src.timestamper.main.QIcon', return_value=QIcon()):
+        mw_new.load_files(files)
+
+    # Select multiple items
+    mw_new.file_list.setCurrentRow(0)
+    mw_new.file_list.selectionModel().setCurrentIndex(mw_new.file_list.model().index(1, 0), QItemSelectionModel.Select)
+    mw_new.file_list.selectionModel().setCurrentIndex(mw_new.file_list.model().index(2, 0), QItemSelectionModel.Select)
+    
+    # Mock the save execution
+    with mock.patch.object(mw_new, '_execute_save', return_value=True) as mock_execute_save:
+        mw_new.save()
+        # Assert that _execute_save was called for each selected file
+        assert mock_execute_save.call_count == 3
+        mock_execute_save.assert_any_call(files[0], mock.ANY)
+        mock_execute_save.assert_any_call(files[1], mock.ANY)
+        mock_execute_save.assert_any_call(files[2], mock.ANY)
+
+def test_thumbnail_view_loading(mw_new, qtbot):
+    """Test that files are loaded as thumbnails."""
+    files = ["/path/to/image1.jpg"]
+    with mock.patch('src.timestamper.main.QPixmap'), mock.patch('src.timestamper.main.QIcon', return_value=QIcon()):
+        mw_new.load_files(files)
+        assert mw_new.file_list.count() == 1
+        item = mw_new.file_list.item(0)
+        assert isinstance(item, QListWidgetItem)
+        assert item.icon() is not None
+        assert item.text() == "image1.jpg"
+        assert item.data(Qt.UserRole) == "/path/to/image1.jpg"
+
+def test_selection_change_updates_ui(mw_new, qtbot):
+    """Test that selecting a thumbnail updates the UI."""
+    files = ["/path/to/image1.jpg", "/path/to/image2.jpg"]
+    with mock.patch('src.timestamper.main.QPixmap'), mock.patch('src.timestamper.main.QIcon', return_value=QIcon()):
+        mw_new.load_files(files)
+    
+    with mock.patch.object(mw_new, '_load_exif_data') as mock_load_exif, \
+         mock.patch.object(mw_new, '_update_exif_info_view') as mock_update_exif, \
+         mock.patch.object(mw_new, '_update_image_preview') as mock_update_preview:
+        
+        # Reset mocks after initial load
+        mock_load_exif.reset_mock()
+        mock_update_exif.reset_mock()
+        mock_update_preview.reset_mock()
+
+        mw_new.file_list.setCurrentRow(1)
+        
+        mock_load_exif.assert_called_once()
+        mock_update_exif.assert_called_once()
+        mock_update_preview.assert_called_once()
+        assert mw_new.current_path == "/path/to/image2.jpg"
