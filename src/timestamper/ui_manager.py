@@ -5,8 +5,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QLabel,
     QPushButton,
-    QFileDialog,
-    QListWidget,
     QHBoxLayout,
     QVBoxLayout,
     QGridLayout,
