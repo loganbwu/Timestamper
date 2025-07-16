@@ -20,7 +20,7 @@ In theory, running `build.sh` with nuitka installed should create a standalone. 
 
 ## Usage
 
-1. Run `python app.py`
+1. Run the application with `python app.py`.
 2. In the File menu (or hotkey Command/Ctrl + O) load one or more JPEGs or TIFFs from a folder
 3. Preview photos in the file list (handy to match photos against your notes).
 4. Enter the datetime, camera/lens, and exposure info.

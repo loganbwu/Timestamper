@@ -221,7 +221,7 @@ class MainWindow(QMainWindow):
         h_splitter.addWidget(info_scroll)
         h_splitter.setSizes([200, 400, 200])
 
-        layout_main.addWidget(h_splitter)
+        layout_main.addWidget(h_splitter, 1)
 
         layout_hud.addWidget(self.datetime)
         layout_hud.addWidget(self.offsettime)
