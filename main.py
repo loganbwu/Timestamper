@@ -1,49 +1,24 @@
 from PySide6.QtCore import Qt, QSettings, QDateTime
-from PySide6.QtGui import QAction, QPixmap, QKeySequence, QShortcut, QFont
-from PySide6.QtWidgets import (
-    QCheckBox,
-    QLabel,
-    QPushButton,
-    QMainWindow,
-    QFileDialog,
-    QListWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QGridLayout,
-    QWidget,
-    QDateTimeEdit,
-    QLineEdit,
-    QScrollArea,
-    QComboBox,
-    QTreeWidget,
-    QTreeWidgetItem,
-    QSplitter
-)
+from PySide6.QtGui import QAction, QPixmap, QKeySequence
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem
 from datetime import datetime
 from os import path
-import os
 import logging
 
-from OffsetSpinBox import DoubleOffsetSpinBox
 from constants import (
-    IMAGE_PREVIEW_MAX_WIDTH,
-    IMAGE_PREVIEW_MAX_HEIGHT,
     NULL_PRESET_NAME,
-    DONE_ICON,
-    DT_CONTROL_LIST,
     FILE_FILTER,
     EXIF_DATE_TIME_ORIGINAL,
     EXIF_EXPOSURE_TIME,
     EXIF_LENS_INFO,
-    EXIF_MAKE,
-    EXIF_MODEL,
     EXIF_OFFSET_TIME,
     EXIF_OFFSET_TIME_ORIGINAL,
     EXIF_SHUTTER_SPEED
 )
 from preset_manager import PresetManager
-from drag_drop_list_widget import DragDropListWidget
-
+from ui_manager import UIManager
+from exif_manager import ExifManager
+from utils import validate_numeric_input, float_to_shutterspeed, parse_lensinfo
 import exiftool
 
 # Configure logging
@@ -59,11 +34,30 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Timestamper")
-
         self.settings = QSettings("Test", "Timestamper")
 
+        # Initialize managers
+        self.ui_manager = UIManager(self)
+        self.exif_manager = None  # Will be initialized when exiftool path is set
+
+        # Set up menu bar
+        self._setup_menu_bar()
+
+        # Create UI components
+        self.ui_manager.create_widgets()
+        self.ui_manager.setup_layouts()
+
+        # Initialize preset managers
+        self._setup_preset_managers()
+
+        self.statusBar().showMessage("Ready")
+
+    def _setup_menu_bar(self):
+        """Set up the application menu bar."""
         self.button_loadfiles = QAction("&Open...", self)
         self.button_loadfiles.setShortcut(QKeySequence.StandardKey.Open)
+        self.button_loadfiles.setStatusTip("Select image files to modify")
+        self.button_loadfiles.triggered.connect(self.onLoadFilesButtonClick)
 
         action_save = QAction("&Save", self)
         action_save.setShortcut(QKeySequence.StandardKey.Save)
@@ -75,109 +69,15 @@ class MainWindow(QMainWindow):
         action_clear_fields = QAction("Clear Fields", self)
         action_clear_fields.triggered.connect(self.clear_fields)
 
-        self.button_loadfiles.setStatusTip("Select image files to modify")
-        self.button_loadfiles.triggered.connect(self.onLoadFilesButtonClick)
-        
         menu = self.menuBar()
-
         file_menu = menu.addMenu("File")
         file_menu.addAction(self.button_loadfiles)
         file_menu.addAction(action_save)
         file_menu.addAction(action_clear_fields)
         file_menu.addAction(button_clearpresets)
 
-        # Define main menu widgets
-        self.file_list = DragDropListWidget()
-        self.file_list.currentTextChanged.connect(self.select_file_from_list)
-        file_list_scroll = QScrollArea()
-        file_list_scroll.setWidget(self.file_list)
-        file_list_scroll.setWidgetResizable(True)
-        self.files_done = [] # remember which files in the list have been done
-        self.done_icon = DONE_ICON
-
-        self.pic = QLabel("Open pictures to begin.")
-        self.pic.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.pic.setMaximumWidth(IMAGE_PREVIEW_MAX_WIDTH)
-        self.pic.setMaximumHeight(IMAGE_PREVIEW_MAX_HEIGHT)
-        self.current_path = None
-        self.current_exif = None
-
-        self.info = QTreeWidget()
-        self.info.setColumnCount(2)
-        self.info.setHeaderLabels(["Name", "Value"])
-        info_scroll = QScrollArea()
-        info_scroll.setWidget(self.info)
-        info_scroll.setWidgetResizable(True)
-
-        self.executable = QLineEdit(self.settings.value("exiftool"))
-        self.executable.setPlaceholderText("Path ending in .../bin/exiftool, from exiftool.org.") 
-        self.executable.textEdited.connect(self.set_executable)
-
-        self.browse_exiftool_button = QPushButton("Browse")
-        self.browse_exiftool_button.clicked.connect(self.browse_exiftool_path)
-
-        self.datetime = QDateTimeEdit()
-        self.datetime.setDateTime(datetime.now())
-
-        self.offsettime = DoubleOffsetSpinBox()
-        self.offsettime.setSingleStep(0.5)
-        self.offsettime.setRange(-12, 14)
-        self.offsettime.setPrefix("GMT")
-        if self.settings.value("offsettime"):
-            self.offsettime.setValue(self.settings.value("offsettime"))
-        self.offsettime.valueChanged.connect(lambda value: self.settings.setValue("offsettime", value))
-        
-        ## Control buttons
-        dt_buttons = []
-        for text, shortcut_key, adjustment_values in DT_CONTROL_LIST:
-            button = QPushButton(f"{text} ({shortcut_key})")
-            button.setShortcut(QKeySequence(shortcut_key))
-            button.setToolTip(f"Hotkey: {shortcut_key}") # Add tooltip
-            button.clicked.connect(lambda values=adjustment_values: self.adjust_datetime(values))
-            dt_buttons.append(button)
-
-        button_save = QPushButton("Save")
-        button_save.setAutoDefault(True)
-        button_save.clicked.connect(self.save)
-        self.amend_mode = QCheckBox("Load EXIF for Editing") # Renamed for clarity
-        self.amend_mode.setToolTip("When checked, re-selecting a 'ticked' photo or any photo will load its EXIF data into the fields.") # Added tooltip
-        self.amend_mode.stateChanged.connect(self.populate_exif_onchange)
-        dt_buttons.append(self.amend_mode)
-        dt_buttons.append(button_save)
-
-        # Other tags (equipment)
-        self.make = QLineEdit()
-        self.model = QLineEdit()
-
-        self.lensmake = QLineEdit()
-        self.lensmodel = QLineEdit()
-        self.widefocallength = QLineEdit()
-        self.widefocallength.textChanged.connect(self.on_widefocallength_change)
-        self.widefocallength.editingFinished.connect(self.on_widefocallength_editingfinished)
-        self.longfocallength = QLineEdit()
-        self.longfocallength.setDisabled(True)
-        self.wideaperturevalue = QLineEdit()
-        self.wideaperturevalue.textChanged.connect(self.on_wideaperturevalue_change)
-        self.wideaperturevalue.editingFinished.connect(self.on_wideaperturevalue_editingfinished)
-        self.longaperturevalue = QLineEdit()
-        self.longaperturevalue.setDisabled(True)
-        self.lensserialnumber = QLineEdit()
-
-        self.iso = QLineEdit()
-        self.exposuretime = QLineEdit()
-        self.fnumber = QLineEdit()
-        self.focallength = QLineEdit()
-
-        # Preset controls
-        self.preset_camera_name = QComboBox(editable=True)
-        self.preset_camera_add = QPushButton("Save camera")
-        self.preset_camera_remove = QPushButton("Remove camera")
-
-        self.preset_lens_name = QComboBox(editable=True)
-        self.preset_lens_add = QPushButton("Save lens")
-        self.preset_lens_remove = QPushButton("Remove lens")
-
-        # Initialize Preset Managers
+    def _setup_preset_managers(self):
+        """Initialize the preset managers for cameras and lenses."""
         self.camera_fields = {
             "Make": self.make,
             "Model": self.model
@@ -204,92 +104,6 @@ class MainWindow(QMainWindow):
         self.preset_lens_name.currentTextChanged.connect(self.lens_preset_manager.load_preset)
         self.preset_lens_add.clicked.connect(lambda: self.lens_preset_manager.add_preset(self.preset_lens_name.currentText()))
         self.preset_lens_remove.clicked.connect(lambda: self.lens_preset_manager.remove_preset(self.preset_lens_name.currentText()))
-
-        # Define layouts
-        layout_gallery = QHBoxLayout()
-        layout_hud = QHBoxLayout()
-        layout_executable = QHBoxLayout()
-        layout_buttons = QGridLayout()
-        layout_extra = QGridLayout()
-        layout_preset = QGridLayout()
-        layout_main = QVBoxLayout()
-
-        # Main horizontal splitter
-        h_splitter = QSplitter(Qt.Horizontal)
-        h_splitter.addWidget(file_list_scroll)
-        h_splitter.addWidget(self.pic)
-        h_splitter.addWidget(info_scroll)
-        h_splitter.setSizes([200, 400, 200])
-
-        layout_main.addWidget(h_splitter, 1)
-
-        layout_hud.addWidget(self.datetime)
-        layout_hud.addWidget(self.offsettime)
-        layout_main.addLayout(layout_hud)
-
-        layout_executable.addWidget(QLabel("exiftool"))
-        layout_executable.addWidget(self.executable)
-        layout_executable.addWidget(self.browse_exiftool_button)
-        layout_main.addLayout(layout_executable)
-
-        # Add datetime adjustment buttons to grid layout
-        for i, x in enumerate(dt_buttons):
-            layout_buttons.addWidget(x, i % 2, i // 2)
-        layout_main.addLayout(layout_buttons)
-
-        # Extra settings for equipment
-        layout_extra.addWidget(QLabel("Camera"), 0, 0, 1, 2)
-        layout_extra.addWidget(QLabel("Camera make"), 1, 0)
-        layout_extra.addWidget(self.make, 1, 1)
-        layout_extra.addWidget(QLabel("Camera model"), 2, 0)
-        layout_extra.addWidget(self.model, 2, 1)
-
-        layout_extra.addWidget(QLabel("Lens"), 0, 2, 1, 2)
-        layout_extra.addWidget(QLabel("Lens make"), 1, 2)
-        layout_extra.addWidget(self.lensmake, 1, 3)
-        layout_extra.addWidget(QLabel("Lens model"), 2, 2)
-        layout_extra.addWidget(self.lensmodel, 2, 3)
-        layout_extra.addWidget(QLabel("Focal range (mm)"), 3, 2)
-        layout_lensinfo_focallength = QGridLayout()
-        layout_lensinfo_focallength.addWidget(self.widefocallength, 0, 1)
-        layout_lensinfo_focallength.addWidget(self.longfocallength, 0, 2)
-        layout_extra.addLayout(layout_lensinfo_focallength, 3, 3)
-        layout_extra.addWidget(QLabel("Max aperture (f/)"), 4, 2)
-        layout_lensinfo_longaperture = QGridLayout()
-        layout_lensinfo_longaperture.addWidget(self.wideaperturevalue, 0, 1)
-        layout_lensinfo_longaperture.addWidget(self.longaperturevalue, 0, 2)
-        layout_extra.addLayout(layout_lensinfo_longaperture, 4, 3)
-        layout_extra.addWidget(QLabel("Lens serial no."), 5, 2)
-        layout_extra.addWidget(self.lensserialnumber, 5, 3)
-
-        layout_extra.addWidget(QLabel("Exposure"), 0, 4, 1, 2)
-        layout_extra.addWidget(QLabel("ISO"), 1, 4)
-        layout_extra.addWidget(self.iso, 1, 5)
-        layout_extra.addWidget(QLabel("Exposure time (s)"), 2, 4)
-        layout_extra.addWidget(self.exposuretime, 2, 5)
-        layout_extra.addWidget(QLabel("Focal length (mm)"), 3, 4)
-        layout_extra.addWidget(self.focallength, 3, 5)
-        layout_extra.addWidget(QLabel("Aperture (f/)"), 4, 4)
-        layout_extra.addWidget(self.fnumber, 4, 5)
-        
-        # Preset controls
-        layout_preset.addWidget(QLabel("Camera preset"), 0, 0, 1, 2)
-        layout_preset.addWidget(self.preset_camera_name, 1, 0, 1, 2)
-        layout_preset.addWidget(self.preset_camera_add, 2, 0)
-        layout_preset.addWidget(self.preset_camera_remove, 2, 1)
-        layout_preset.addWidget(QLabel("Lens preset"), 0, 2, 1, 2)
-        layout_preset.addWidget(self.preset_lens_name, 1, 2, 1, 2)
-        layout_preset.addWidget(self.preset_lens_add, 2, 2)
-        layout_preset.addWidget(self.preset_lens_remove, 2, 3)
-
-        layout_main.addLayout(layout_extra)
-        layout_main.addLayout(layout_preset)
-        
-        widget = QWidget()
-        widget.setLayout(layout_main)
-        self.setCentralWidget(widget)
-
-        self.statusBar().showMessage("Ready")
     
     def on_widefocallength_change(self, text: str):
         """Enables or disables the long focal length field based on input."""
@@ -406,7 +220,7 @@ class MainWindow(QMainWindow):
             if ":" in k:
                 prefix, name = k.split(":")
                 if name in ["ShutterSpeedValue", "ExposureTime"]:
-                    v = f"{self.float_to_shutterspeed(v)}s"
+                    v = f"{float_to_shutterspeed(v)}s"
                 if prefix in data:
                     data[prefix].append([name, v])
                 else:
@@ -448,54 +262,19 @@ class MainWindow(QMainWindow):
             self._update_image_preview()
         super().resizeEvent(event)
 
-    def format_as_offset(self, x: float) -> str:
-        """Formats a float as a timezone offset string."""
-        x = abs(x)
-        hours = int(x)
-        minutes = int((x % 1) * 60)
-        offset = f"{hours:02d}:{minutes:02d}"
-        return offset
-
     def adjust_datetime(self, x: tuple[int, int, int]):
         """Adjusts the datetime by the given days, hours, and minutes."""
         d, h, m = x
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
         logger.info(f'Setting datetime to {new_dt.toString()}')
         self.datetime.setDateTime(new_dt)
-        
-    def parse_lensinfo(self, lensinfo: str) -> list[str] | None:
-        """Parses the lens info string into a list of its components."""
-        elements = lensinfo.split(" ", 3)
-        if len(elements) != 4:
-            return None
-        def can_be_cast_to_float(x):
-            if x is None:
-                return False
-            try:
-                float(x)
-                return True
-            except ValueError:
-                return False
-        processed_elements = []
-        for x in elements:
-            if can_be_cast_to_float(x):
-                processed_elements.append(x)
-            else:
-                return None # If any element is not float-castable, return None for the whole thing
-        return processed_elements
 
     def _validate_numeric_input(self, field_name: str, text_value: str) -> bool:
         """Validates that a given text value can be cast to a float."""
-        if text_value == "":
-            return True # Empty string is allowed, means no value to write
-        try:
-            float(text_value)
-            return True
-        except ValueError:
-            error_message = f"Error: Invalid numeric input for {field_name}: '{text_value}'"
-            logger.error(error_message)
-            self.statusBar().showMessage(error_message, 5000)
+        if not validate_numeric_input(field_name, text_value):
+            self.statusBar().showMessage(f"Error: Invalid numeric input for {field_name}: '{text_value}'", 5000)
             return False
+        return True
 
     def save(self):
         """Saves the EXIF data to the current file."""
@@ -605,7 +384,7 @@ class MainWindow(QMainWindow):
         shutter_keys = [EXIF_EXPOSURE_TIME, EXIF_SHUTTER_SPEED]
         for k in shutter_keys:
             if k in exif:
-                self.exposuretime.setText(self.float_to_shutterspeed(exif[k]))
+                self.exposuretime.setText(float_to_shutterspeed(exif[k]))
                 break
 
         if EXIF_DATE_TIME_ORIGINAL in exif:
@@ -620,7 +399,7 @@ class MainWindow(QMainWindow):
                 break
 
         if EXIF_LENS_INFO in exif:
-            lensinfo_list = self.parse_lensinfo(exif[EXIF_LENS_INFO])
+            lensinfo_list = parse_lensinfo(exif[EXIF_LENS_INFO])
             if lensinfo_list and len(lensinfo_list) == 4:
                 self.widefocallength.setText(lensinfo_list[0])
                 self.longfocallength.setText(lensinfo_list[1])
@@ -682,11 +461,3 @@ class MainWindow(QMainWindow):
         
         logger.info("Cleared all input fields.")
         self.statusBar().showMessage("All input fields cleared.", 3000)
-
-    def float_to_shutterspeed(self, value: float) -> str:
-        """Converts a float value to a shutter speed string."""
-        if float(value) < 1:
-            inv_shutterspeed = 1/float(value)
-            return(f"1/{inv_shutterspeed:g}s")
-        else:
-            return(f"{value:g}s")
