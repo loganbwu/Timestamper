@@ -16,10 +16,12 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QComboBox,
     QTreeWidget,
-    QTreeWidgetItem
+    QTreeWidgetItem,
+    QSplitter
 )
 from datetime import datetime
 from os import path
+import os
 import logging
 
 from OffsetSpinBox import DoubleOffsetSpinBox
@@ -40,6 +42,7 @@ from constants import (
     EXIF_SHUTTER_SPEED
 )
 from preset_manager import PresetManager
+from drag_drop_list_widget import DragDropListWidget
 
 import exiftool
 
@@ -49,8 +52,10 @@ logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
+    """Main application window for Timestamper."""
 
     def __init__(self):
+        """Initializes the main window, UI components, and connections."""
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("Timestamper")
@@ -82,7 +87,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(button_clearpresets)
 
         # Define main menu widgets
-        self.file_list = QListWidget()
+        self.file_list = DragDropListWidget()
         self.file_list.currentTextChanged.connect(self.select_file_from_list)
         file_list_scroll = QScrollArea()
         file_list_scroll.setWidget(self.file_list)
@@ -91,6 +96,7 @@ class MainWindow(QMainWindow):
         self.done_icon = DONE_ICON
 
         self.pic = QLabel("Open pictures to begin.")
+        self.pic.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pic.setMaximumWidth(IMAGE_PREVIEW_MAX_WIDTH)
         self.pic.setMaximumHeight(IMAGE_PREVIEW_MAX_HEIGHT)
         self.current_path = None
@@ -152,7 +158,7 @@ class MainWindow(QMainWindow):
         self.longfocallength.setDisabled(True)
         self.wideaperturevalue = QLineEdit()
         self.wideaperturevalue.textChanged.connect(self.on_wideaperturevalue_change)
-        # self.wideaperturevalue.editingFinished.connect(self.on_wideaperturevalue_editingfinished)
+        self.wideaperturevalue.editingFinished.connect(self.on_wideaperturevalue_editingfinished)
         self.longaperturevalue = QLineEdit()
         self.longaperturevalue.setDisabled(True)
         self.lensserialnumber = QLineEdit()
@@ -208,20 +214,28 @@ class MainWindow(QMainWindow):
         layout_preset = QGridLayout()
         layout_main = QVBoxLayout()
 
-        layout_gallery.addWidget(file_list_scroll)
-        layout_gallery.addWidget(self.pic)
-        layout_gallery.addWidget(info_scroll)
+        # Main horizontal splitter
+        h_splitter = QSplitter(Qt.Horizontal)
+        h_splitter.addWidget(file_list_scroll)
+        h_splitter.addWidget(self.pic)
+        h_splitter.addWidget(info_scroll)
+        h_splitter.setSizes([200, 400, 200])
+
+        layout_main.addWidget(h_splitter)
 
         layout_hud.addWidget(self.datetime)
         layout_hud.addWidget(self.offsettime)
+        layout_main.addLayout(layout_hud)
 
         layout_executable.addWidget(QLabel("exiftool"))
         layout_executable.addWidget(self.executable)
         layout_executable.addWidget(self.browse_exiftool_button)
+        layout_main.addLayout(layout_executable)
 
         # Add datetime adjustment buttons to grid layout
         for i, x in enumerate(dt_buttons):
             layout_buttons.addWidget(x, i % 2, i // 2)
+        layout_main.addLayout(layout_buttons)
 
         # Extra settings for equipment
         layout_extra.addWidget(QLabel("Camera"), 0, 0, 1, 2)
@@ -268,10 +282,6 @@ class MainWindow(QMainWindow):
         layout_preset.addWidget(self.preset_lens_add, 2, 2)
         layout_preset.addWidget(self.preset_lens_remove, 2, 3)
 
-        layout_main.addLayout(layout_gallery)
-        layout_main.addLayout(layout_hud)
-        layout_main.addLayout(layout_executable)
-        layout_main.addLayout(layout_buttons)
         layout_main.addLayout(layout_extra)
         layout_main.addLayout(layout_preset)
         
@@ -281,14 +291,16 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("Ready")
     
-    def on_widefocallength_change(self, text):
+    def on_widefocallength_change(self, text: str):
+        """Enables or disables the long focal length field based on input."""
         if text:
             self.longfocallength.setEnabled(True)
         else:
             self.longfocallength.setDisabled(True)
             self.longfocallength.setText("")
             
-    def on_wideaperturevalue_change(self, text):
+    def on_wideaperturevalue_change(self, text: str):
+        """Enables or disables the long aperture value field and prefills the f-number."""
         if text:
             self.longaperturevalue.setEnabled(True)
             if not self.fnumber.text() and not self.longaperturevalue.text():
@@ -298,126 +310,161 @@ class MainWindow(QMainWindow):
             self.longaperturevalue.setText("")
             
     def on_widefocallength_editingfinished(self):
+        """Prefills the focal length field when editing is finished."""
         text = self.widefocallength.text()
         if text and not self.focallength.text() and not self.longfocallength.text():
             self.focallength.setText(text)
             
     def on_wideaperturevalue_editingfinished(self):
+        """Prefills the f-number field when editing is finished."""
         text = self.wideaperturevalue.text()
         if text and not self.fnumber.text() and not self.longaperturevalue.text():
             self.fnumber.setText(text)
 
 
     def onLoadFilesButtonClick(self):
+        """Opens a file dialog to select images or a folder and loads them into the file list."""
         logger.info("Loading files...")
-        file_selection = QFileDialog.getOpenFileNames(self, caption="Select images", filter=FILE_FILTER)
-        self.files_done = [] # Reset markings for complete files
-        self.file_list.clear()
-        self.file_list.addItems(file_selection[0])
-        self.file_list.sortItems()
-        self.file_list.setCurrentRow(0)
-        self.file_list.setFocus()
-    
-    def select_file_from_list(self, s):
+        home_dir = path.expanduser("~")
         
-        # Remove the 'done' tick from the name if present
-        # Files that are 'done' will always have amend_mode used
-        is_done = False
-        self.current_path = s
-        if len(s) >= len(self.done_icon) and s[0:2] == self.done_icon:
-            self.current_path = s[len(self.done_icon):len(s)]
-            is_done = True
+        file_dialog = QFileDialog(self, "Select Images or a Folder", home_dir, FILE_FILTER)
+        file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        
+        if file_dialog.exec():
+            selected_files = file_dialog.selectedFiles()
+            if not selected_files:
+                return
 
-        if self.current_path == "":
-            logger.info("No picture selected.")
+            self.files_done = []
+            self.file_list.clear()
+            self.file_list.addItems(selected_files)
+            self.file_list.sortItems()
+            self.file_list.setCurrentRow(0)
+            self.file_list.setFocus()
+    
+    def select_file_from_list(self, s: str):
+        """Handles the selection of a file from the list."""
+        self.current_path, is_done = self._get_clean_path(s)
+
+        if not self.current_path:
             self.pic.setText("No picture selected.")
+            return
 
-        elif not path.isfile(self.settings.value("exiftool")):
+        if not self._is_exiftool_available():
+            return
+
+        self._load_exif_data()
+        self._update_exif_info_view()
+        self._update_image_preview()
+
+        if (self.amend_mode.isChecked() or is_done) and self.current_exif:
+            logger.info("Populating form with existing image EXIF")
+            self.populate_exif(self.current_exif)
+
+    def _get_clean_path(self, s: str) -> tuple[str, bool]:
+        """Removes the 'done' icon from the path and returns the clean path and a boolean indicating if it was done."""
+        is_done = False
+        path_str = s
+        if len(s) >= len(self.done_icon) and s.startswith(self.done_icon):
+            path_str = s[len(self.done_icon):]
+            is_done = True
+        return path_str, is_done
+
+    def _is_exiftool_available(self) -> bool:
+        """Checks if the exiftool executable is available and configured."""
+        exiftool_path = self.settings.value("exiftool")
+        if not exiftool_path or not path.isfile(exiftool_path):
             error_message = "Error: Could not find exiftool executable. Please check the path."
             logger.error(error_message)
             self.statusBar().showMessage(error_message, 5000)
-            self.current_exif = None # Ensure current_exif is None if exiftool is not found
+            self.current_exif = None
+            return False
+        return True
 
-        # Update data view
-        else:
-            try:
-                with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                    self.current_exif = et.get_metadata(self.current_path)[0]
-                    message = f'Opened EXIF for "{self.current_path}"'
-                    logger.info(message)
-                    self.statusBar().showMessage(message, 3000)
-            except Exception as e: # Catch generic Exception for now
-                error_message = f'Error: Exiftool operation failed for "{self.current_path}". {e}'
-                logger.error(error_message)
-                self.statusBar().showMessage(error_message, 5000)
-                self.current_exif = None
-            finally:
-                # Set metadata
-                self.info.clear()
-                data = {}
-                if self.current_exif is not None:
-                    for k, v in sorted(self.current_exif.items()):
-                        if ":" in k:
-                            prefix, name = k.split(":")
-                            if name in ["ShutterSpeedValue", "ExposureTime"]:
-                                v = f"{self.float_to_shutterspeed(v)}s"
-                            if prefix in data.keys():
-                                data[prefix].append([name, v])
-                            else:
-                                data[prefix] = [[name, v]]
-                    # EXIF is always first
-                    if "EXIF" in data.keys():
-                        data = {"EXIF": data.pop("EXIF"), **data}
-                    items = []
-                    for key, tags in data.items():
-                        item = QTreeWidgetItem([key])
-                        for tag in tags:
-                            child = QTreeWidgetItem([tag[0], str(tag[1])])
-                            item.addChild(child)
-                        items.append(item)
+    def _load_exif_data(self):
+        """Loads EXIF data for the current file."""
+        try:
+            with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
+                self.current_exif = et.get_metadata(self.current_path)[0]
+                message = f'Opened EXIF for "{self.current_path}"'
+                logger.info(message)
+                self.statusBar().showMessage(message, 3000)
+        except Exception as e:
+            error_message = f'Error: Exiftool operation failed for "{self.current_path}". {e}'
+            logger.error(error_message)
+            self.statusBar().showMessage(error_message, 5000)
+            self.current_exif = None
 
-                    self.info.addTopLevelItems(items)
-                    if items:
-                        self.info.topLevelItem(0).setExpanded(True)
-                
-                    if (self.amend_mode.checkState() == Qt.CheckState.Checked or is_done) and self.current_exif:
-                        print("Populating form with existing image EXIF")
-                        self.populate_exif(self.current_exif)
+    def _update_exif_info_view(self):
+        """Updates the EXIF info view with the current EXIF data."""
+        self.info.clear()
+        if not self.current_exif:
+            return
 
-            # Update image
-            try:
-                self.pic.setPixmap(QPixmap(self.current_path).scaled(IMAGE_PREVIEW_MAX_WIDTH, IMAGE_PREVIEW_MAX_HEIGHT, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-            except Exception as e:
-                logger.error(f"Could not load image: {e}")
-                self.pic.setText("No picture selected.")
+        data = {}
+        for k, v in sorted(self.current_exif.items()):
+            if ":" in k:
+                prefix, name = k.split(":")
+                if name in ["ShutterSpeedValue", "ExposureTime"]:
+                    v = f"{self.float_to_shutterspeed(v)}s"
+                if prefix in data:
+                    data[prefix].append([name, v])
+                else:
+                    data[prefix] = [[name, v]]
+        
+        if "EXIF" in data:
+            data = {"EXIF": data.pop("EXIF"), **data}
+
+        items = []
+        for key, tags in data.items():
+            item = QTreeWidgetItem([key])
+            for tag in tags:
+                child = QTreeWidgetItem([tag[0], str(tag[1])])
+                item.addChild(child)
+            items.append(item)
+
+        self.info.addTopLevelItems(items)
+        if items:
+            self.info.topLevelItem(0).setExpanded(True)
+
+    def _update_image_preview(self):
+        """Updates the image preview with the current image."""
+        try:
+            pixmap = QPixmap(self.current_path)
+            if pixmap.isNull():
+                raise ValueError("Could not load image.")
+            self.pic.setPixmap(pixmap.scaled(
+                self.pic.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            ))
+        except Exception as e:
+            logger.error(f"Could not load image: {e}")
+            self.pic.setText("No picture selected.")
     
     def resizeEvent(self, event):
-        # Override resizeEvent to update image preview when window resizes
+        """Handles the window resize event to update the image preview."""
         if self.current_path:
-            try:
-                self.pic.setPixmap(QPixmap(self.current_path).scaled(
-                    self.pic.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
-                ))
-            except Exception as e:
-                logger.error(f"Error resizing image: {e}")
+            self._update_image_preview()
         super().resizeEvent(event)
 
-    def format_as_offset(self, x):
+    def format_as_offset(self, x: float) -> str:
+        """Formats a float as a timezone offset string."""
         x = abs(x)
         hours = int(x)
         minutes = int((x % 1) * 60)
         offset = f"{hours:02d}:{minutes:02d}"
         return offset
 
-    def adjust_datetime(self, x):
+    def adjust_datetime(self, x: tuple[int, int, int]):
+        """Adjusts the datetime by the given days, hours, and minutes."""
         d, h, m = x
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
         logger.info(f'Setting datetime to {new_dt.toString()}')
         self.datetime.setDateTime(new_dt)
         
-    def parse_lensinfo(self, lensinfo):
+    def parse_lensinfo(self, lensinfo: str) -> list[str] | None:
+        """Parses the lens info string into a list of its components."""
         elements = lensinfo.split(" ", 3)
         if len(elements) != 4:
             return None
@@ -437,7 +484,8 @@ class MainWindow(QMainWindow):
                 return None # If any element is not float-castable, return None for the whole thing
         return processed_elements
 
-    def _validate_numeric_input(self, field_name, text_value):
+    def _validate_numeric_input(self, field_name: str, text_value: str) -> bool:
+        """Validates that a given text value can be cast to a float."""
         if text_value == "":
             return True # Empty string is allowed, means no value to write
         try:
@@ -450,10 +498,19 @@ class MainWindow(QMainWindow):
             return False
 
     def save(self):
-        if self.file_list.currentItem() is None:
+        """Saves the EXIF data to the current file."""
+        if self.file_list.currentItem() is None or not self.current_exif:
             return
 
-        # Validate numeric inputs
+        if not self._validate_all_numeric_inputs():
+            return
+
+        tags_to_save = self._prepare_exif_tags()
+        self._execute_save(tags_to_save)
+        self._advance_to_next_file()
+
+    def _validate_all_numeric_inputs(self) -> bool:
+        """Validates all numeric input fields."""
         numeric_fields = {
             "ISO": self.iso.text(),
             "ExposureTime": self.exposuretime.text(),
@@ -464,63 +521,62 @@ class MainWindow(QMainWindow):
             "WideApertureValue": self.wideaperturevalue.text(),
             "LongApertureValue": self.longaperturevalue.text()
         }
-
         for field_name, value in numeric_fields.items():
             if not self._validate_numeric_input(field_name, value):
-                return # Stop saving if any validation fails
+                return False
+        return True
 
-        # Process LensInfo
+    def _prepare_exif_tags(self) -> dict:
+        """Prepares a dictionary of EXIF tags to be saved."""
         a = self.widefocallength.text()
         b = self.longfocallength.text()
-        if a and not b:
-            b = a
+        if a and not b: b = a
         c = self.wideaperturevalue.text()
         d = self.longaperturevalue.text()
-        if c and not d:
-            d = c
+        if c and not d: d = c
         lensinfo = f"{a} {b} {c} {d}"
         logger.info(f"LensInfo: {lensinfo}")
-        
-        if self.current_exif:
-            dt = self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:00")
-            tags = {
-                    "DateTimeOriginal": dt,
-                    "OffsetTimeOriginal": self.offsettime.textFromValue(self.offsettime.value()),
-                    "OffsetTime": self.offsettime.textFromValue(self.offsettime.value()),
-                    "Make": self.make.text(),
-                    "Model": self.model.text(),
-                    "MaxApertureValue": self.wideaperturevalue.text(),
-                    "ISO": self.iso.text(),
-                    "LensMake": self.lensmake.text(),
-                    "LensModel": self.lensmodel.text(),
-                    "LensInfo": lensinfo,
-                    "LensSerialNumber": self.lensserialnumber.text(),
-                    "FocalLength": self.focallength.text().removesuffix("mm"),
-                    "FNumber": self.fnumber.text(),
-                    "ExposureTime": self.exposuretime.text(),
-                    "ShutterSpeedValue": self.exposuretime.text()
-                }
-            tags_filtered = {k: v for k, v in tags.items() if v != "" and v != None}
-            try:
-                with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                    et.set_tags(self.current_path, tags = tags_filtered, params=["-overwrite_original"])
-                message = f'Saved EXIF to file: {tags_filtered}'
-                logger.info(message)
-                self.statusBar().showMessage(message, 3000)
-            except Exception as e: # Catch generic Exception for now
-                error_message = f'Error: Failed to save EXIF to "{self.current_path}". {e}'
-                logger.error(error_message)
-                self.statusBar().showMessage(error_message, 5000)
 
-        # Manage post-save list
+        tags = {
+            "DateTimeOriginal": self.datetime.dateTime().toString("yyyy:MM:dd HH:mm:00"),
+            "OffsetTimeOriginal": self.offsettime.textFromValue(self.offsettime.value()),
+            "OffsetTime": self.offsettime.textFromValue(self.offsettime.value()),
+            "Make": self.make.text(),
+            "Model": self.model.text(),
+            "MaxApertureValue": self.wideaperturevalue.text(),
+            "ISO": self.iso.text(),
+            "LensMake": self.lensmake.text(),
+            "LensModel": self.lensmodel.text(),
+            "LensInfo": lensinfo,
+            "LensSerialNumber": self.lensserialnumber.text(),
+            "FocalLength": self.focallength.text().removesuffix("mm"),
+            "FNumber": self.fnumber.text(),
+            "ExposureTime": self.exposuretime.text(),
+            "ShutterSpeedValue": self.exposuretime.text()
+        }
+        return {k: v for k, v in tags.items() if v}
+
+    def _execute_save(self, tags: dict):
+        """Executes the save operation using exiftool."""
+        try:
+            with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
+                et.set_tags(self.current_path, tags=tags, params=["-overwrite_original"])
+            message = f'Saved EXIF to file: {tags}'
+            logger.info(message)
+            self.statusBar().showMessage(message, 3000)
+        except Exception as e:
+            error_message = f'Error: Failed to save EXIF to "{self.current_path}". {e}'
+            logger.error(error_message)
+            self.statusBar().showMessage(error_message, 5000)
+
+    def _advance_to_next_file(self):
+        """Advances the selection to the next file in the list that has not been processed."""
         selected_row = self.file_list.currentRow()
         if selected_row not in self.files_done:
             self.file_list.currentItem().setText(self.done_icon + self.file_list.currentItem().text())
-            self.files_done.append(selected_row) # Mark as done
-        
+            self.files_done.append(selected_row)
+
         n_files = self.file_list.count()
-        
-        # Find next file to process, starting from the one after the current one
         if len(self.files_done) < n_files:
             for i in range(1, n_files):
                 next_row = (selected_row + i) % n_files
@@ -528,10 +584,10 @@ class MainWindow(QMainWindow):
                     self.file_list.setCurrentRow(next_row)
                     break
         
-        # Set focus to the file list
         self.file_list.setFocus()
     
-    def _populate_fields(self, exif, fields_map):
+    def _populate_fields(self, exif: dict, fields_map: dict):
+        """Populates a set of fields from EXIF data."""
         for key, widget in fields_map.items():
             exif_key = f"EXIF:{key}"
             if exif_key in exif:
@@ -540,17 +596,12 @@ class MainWindow(QMainWindow):
                     value = round(value, 3)
                 widget.setText(str(value))
 
-    # Use EXIF to populated userform fields
-    def populate_exif(self, exif):
-        # Clear preset names. In future could make it try to find a matching preset.
-        self.preset_camera_name.setCurrentText(NULL_PRESET_NAME)
-        self.preset_lens_name.setCurrentText(NULL_PRESET_NAME)
-
-        # Handle simple text fields
+    def populate_exif(self, exif: dict):
+        """Populates the form fields with data from the provided EXIF dictionary."""
+        # First, populate all fields from EXIF
         self._populate_fields(exif, self.camera_preset_manager.fields_map)
         self._populate_fields(exif, self.lens_preset_manager.fields_map)
 
-        # Handle more complicated fields
         shutter_keys = [EXIF_EXPOSURE_TIME, EXIF_SHUTTER_SPEED]
         for k in shutter_keys:
             if k in exif:
@@ -570,25 +621,37 @@ class MainWindow(QMainWindow):
 
         if EXIF_LENS_INFO in exif:
             lensinfo_list = self.parse_lensinfo(exif[EXIF_LENS_INFO])
-            if lensinfo_list and len(lensinfo_list) == 4: # Ensure lensinfo_list is not None and has 4 elements
-                if lensinfo_list[0]:
-                    self.widefocallength.setText(lensinfo_list[0])
-                if lensinfo_list[1]:
-                    self.longfocallength.setText(lensinfo_list[1])
-                if lensinfo_list[2]:
-                    self.wideaperturevalue.setText(lensinfo_list[2])
-                if lensinfo_list[3]:
-                    self.longaperturevalue.setText(lensinfo_list[3])
+            if lensinfo_list and len(lensinfo_list) == 4:
+                self.widefocallength.setText(lensinfo_list[0])
+                self.longfocallength.setText(lensinfo_list[1])
+                self.wideaperturevalue.setText(lensinfo_list[2])
+                self.longaperturevalue.setText(lensinfo_list[3])
 
-    def populate_exif_onchange(self, checked):
+        # Then, try to match and set presets
+        matching_camera = self.camera_preset_manager.find_matching_preset(exif)
+        if matching_camera:
+            self.preset_camera_name.setCurrentText(matching_camera)
+        else:
+            self.preset_camera_name.setCurrentText(NULL_PRESET_NAME)
+
+        matching_lens = self.lens_preset_manager.find_matching_preset(exif)
+        if matching_lens:
+            self.preset_lens_name.setCurrentText(matching_lens)
+        else:
+            self.preset_lens_name.setCurrentText(NULL_PRESET_NAME)
+
+    def populate_exif_onchange(self, checked: int):
+        """Populates EXIF data when the 'Load EXIF for Editing' checkbox is changed."""
         if checked == 2 and self.current_exif:
             self.populate_exif(self.current_exif)
 
-    def set_executable(self, path):
+    def set_executable(self, path: str):
+        """Sets the path to the exiftool executable in the application settings."""
         logger.info(f'Setting exiftool path to {path}')
         self.settings.setValue("exiftool", path)
 
     def browse_exiftool_path(self):
+        """Opens a file dialog to browse for the exiftool executable."""
         file_dialog = QFileDialog(self)
         file_dialog.setFileMode(QFileDialog.ExistingFile)
         file_dialog.setNameFilter("Executable Files (*)")
@@ -598,6 +661,7 @@ class MainWindow(QMainWindow):
             self.set_executable(selected_file)
 
     def clear_presets(self):
+        """Clears all saved camera and lens presets."""
         self.settings.remove("preset_cameras")
         self.settings.remove("preset_lenses")
         logger.info("Cleared presets")
@@ -605,7 +669,7 @@ class MainWindow(QMainWindow):
         self.lens_preset_manager.refresh_presets()
 
     def clear_fields(self):
-        # Clear QLineEdit fields
+        """Clears all input fields to their default states."""
         for field in [self.make, self.model, self.lensmake, self.lensmodel,
                        self.widefocallength, self.longfocallength,
                        self.wideaperturevalue, self.longaperturevalue,
@@ -613,16 +677,14 @@ class MainWindow(QMainWindow):
                        self.fnumber, self.focallength]:
             field.clear()
         
-        # Reset QDateTimeEdit to current time
         self.datetime.setDateTime(datetime.now())
-        
-        # Reset OffsetSpinBox to default (0.0)
         self.offsettime.setValue(0.0)
         
         logger.info("Cleared all input fields.")
         self.statusBar().showMessage("All input fields cleared.", 3000)
 
-    def float_to_shutterspeed(self, value):
+    def float_to_shutterspeed(self, value: float) -> str:
+        """Converts a float value to a shutter speed string."""
         if float(value) < 1:
             inv_shutterspeed = 1/float(value)
             return(f"1/{inv_shutterspeed:g}s")
