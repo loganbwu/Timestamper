@@ -1,67 +1,87 @@
 # Timestamper
 
-Timestamper is a Pyside6 app for adding timestamps and other routine EXIF data to your film scans or any other JPEG/TIFFs that lack valuable data for digital cataloguing. The user interface is designed to rapidly assign data when elements are often related in a roll such as the same camera and lens, or sequentially offset timestamps.
+Timestamper is a desktop application built with PySide6 for adding and editing EXIF metadata to your images. It's designed for a fast, efficient workflow, especially when processing batches of photos like film scans that often lack the valuable data needed for digital cataloging.
 
-This *should* work on Mac, Windows, or Linux, but I have only test it on Mac.
+This application should work on macOS, Windows, and Linux, provided the dependencies are met. It has been primarily tested on macOS.
 
 ![Screenshot of main screen](https://github.com/loganbwu/Timestamper/blob/main/screenshots/main_screen.png?raw=true)
 
+## Who is this for?
+
+Timestamper is ideal for:
+
+-   **Film Photographers:** Easily add camera, lens, and exposure details to your scanned negatives or positives.
+-   **Digital Archivists:** Add or correct timestamps and other metadata on batches of images for better organization in software like Adobe Lightroom, PhotoPrism, or Immich.
+-   **Anyone needing to fix metadata:** Correct or add missing EXIF data on any JPEG or TIFF image.
+
+## Why use Timestamper?
+
+-   **Rapid Batch Editing:** The UI is designed for speed. After saving data for one image, the application automatically advances to the next, retaining relevant data to minimize repetitive typing.
+-   **Powerful Presets:** Save and load entire camera and lens profiles. If you shoot a whole roll with the same gear, you only need to enter it once.
+-   **Efficient Workflow:** Use drag-and-drop to load files and folders, and keyboard shortcuts to make quick datetime adjustments.
+-   **Data Integrity:** The app uses the industry-standard `exiftool` to handle metadata, ensuring your files are modified safely.
+
+## Features
+
+-   **Comprehensive EXIF Editing:** Add or edit a wide range of tags, including:
+    -   Date and Time (with timezone offset)
+    -   Camera Make and Model
+    -   Lens Make, Model, Serial Number, and Optical Characteristics (focal length, aperture)
+    -   Exposure Details (ISO, F-Number, Exposure Time)
+-   **Batch Processing:** Load multiple files or entire folders at once and efficiently work through them.
+-   **Camera & Lens Presets:** Create, save, and manage presets for your most-used camera and lens combinations.
+-   **Drag-and-Drop:** Quickly load files by dragging them directly onto the file list.
+-   **Image Preview & EXIF Viewer:** See a preview of the selected image and inspect all its existing EXIF data in a clear, organized tree view.
+-   **Hotkeys for Rapid Adjustments:** Use keyboard shortcuts to quickly adjust the date and time by days, hours, or minutes.
+-   **Amend Mode:** Easily load, modify, and re-save the EXIF data of previously processed images.
+-   **Configurable `exiftool` Path:** Set the path to your `exiftool` executable through a simple settings dialog.
+
 ## Installation
 
-Currently there is no standalone distribution as this is developed for personal use.
+This project is managed using [Rye](https://rye-up.com/), which handles Python version management and package installation.
 
-1. Clone or download this repository
-2. Install Exiftool (exiftool.org)
-3. Install Python
-4. (Optional) make a new virtual environment: `python -m venv timestamperenv` `source timestamperenv/bin/activate`
-5. Install required packages: `pip install -r requirements.txt`
+**Prerequisites:**
 
-In theory, running `build.sh` with nuitka installed should create a standalone. I've gotten it to work before, but personal circumstances stop me from being able to offer it at the moment.
+1.  **Rye:** Follow the official instructions to [install Rye](https://rye-up.com/guide/installation/).
+2.  **ExifTool:** Download and install `exiftool` from the [official website](https://exiftool.org/). Make a note of the path to the executable.
+
+**Steps:**
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/loganbwu/Timestamper.git
+    cd Timestamper
+    ```
+
+2.  **Install dependencies:**
+    This command will automatically download the correct Python version and install all required packages into a virtual environment.
+    ```bash
+    rye sync
+    ```
 
 ## Usage
 
-1. Run the application with `python app.py`.
-2. In the File menu (or hotkey Command/Ctrl + O) load one or more JPEGs or TIFFs from a folder
-3. Preview photos in the file list (handy to match photos against your notes).
-4. Enter the datetime, camera/lens, and exposure info.
-5. (Optional) save your camera/lens as a preset, or select a preset.
-6. Press Command/Ctrl+S to save EXIF to file. The tool auto-advances to the next photo (or previous if the next photo is 'ticked' and the previous photo is not). In general, the previous image's settings are retained in the input fields when moving to a new image with the assumption that the two images are taken consecutively, allowing for faster input.
-7. With the file list selected, use the hotkeys Y-L to adjust the datetime.
-8. If you need to amend a previously saved photo, re-selecting a 'ticked' photo will re-populate the previously saved EXIF. Checking 'amend' and selecting any photo will also load and populate EXIF. This can be used duplicate metadata by loading it from a photo in 'amend' mode, then selecting a new photo (missing values will not override field text in amend mode).
+1.  **Run the application:**
+    ```bash
+    rye run timestamper
+    ```
 
-## Known issues
+2.  **Configure ExifTool:**
+    The first time you run the app, go to `File -> Settings` and set the path to your `exiftool` executable. This is a one-time setup.
 
-- When populating EXIF ('amend' mode or selecting a previously saved image), the preset pickers do not check if the image matches a preset. Workaround is they default to '(None)' while EXIF fields remain populated.
-- When saving info, blank fields will now clear existing information, allowing for explicit removal of EXIF data.
-- In general, the preset input fields (both data fields and preset selectors) might not work as expected because of how the presets are saved on the device. Have a suggestion? Create an *Issue* on Github.
+3.  **Load Images:**
+    -   Use `File -> Open...` (or `Cmd/Ctrl+O`) to select one or more image files (JPEG, TIFF). You can also select a folder to load all supported images within it.
+    -   Alternatively, drag and drop files or folders onto the file list.
 
-## Development Plan
+4.  **Enter EXIF Data:**
+    -   Select a file from the list on the left. A preview and its existing EXIF data will appear on the right.
+    -   Fill in the fields with the desired information.
+    -   To speed things up, save your camera and lens information as presets using the `+` button. You can then select them from the dropdown menu.
 
-This section outlines the planned improvements for Timestamper, focusing on code quality, user interface (UI), user experience (UX), and new features.
+5.  **Save Data:**
+    -   Press `Cmd/Ctrl+S` to save the EXIF data to the current file.
+    -   The application will mark the file as "done" (✓) and automatically select the next unprocessed image in the list.
 
-### Proposed Changes
-
-**A. Code Quality & Maintainability**
-
-1.  **Add Docstrings and Type Hinting**: The codebase will be updated with docstrings and type hints for functions and classes to improve clarity and robustness.
-
-**B. UI/UX Enhancements**
-
-1.  **Add Drag-and-Drop Support**: Implement drag-and-drop functionality for image files onto the file list. The `src/timestamper/drag_drop_list_widget.py` already exists, suggesting this is a planned feature. This will need to be integrated into `main.py`.
-2.  **Visual Feedback for Preset Operations**: Add visual cues (e.g., status bar messages, temporary highlights) when presets are saved or updated.
-3.  **Smarter File Dialog Start Path**: Modify the file dialog to open in a more user-friendly default location.
-4.  **Folder Selection in File Dialog**: Enhance the file loading mechanism to allow selecting an entire folder.
-
-**C. New Features**
-
-1.  **`exiftool` Path Configuration via GUI (using QSettings)**: Implement a settings dialog or menu option where users can browse for and save the path to their `exiftool` executable. This will use `QSettings` for persistence, aligning with existing preset management.
-
-### Testing Strategy
-
-To ensure continuous functionality, automated tests will be implemented using `pytest`. The existing test suite provides a good foundation, and new tests will be added to cover the new features and improvements.
-
-### Developer Notes
-
-- **Keep the test suite up to date:** Whenever you add or modify a feature, please update the tests accordingly.
-- **Run tests frequently:** Run the test suite often to catch regressions early.
-- **Commit discrete changes:** Make small, atomic commits with clear messages. This helps in tracking changes and debugging.
+6.  **Amend Data (Optional):**
+    -   If you need to correct a previously saved image, simply select it from the list. The saved data will populate the fields.
+    -   Alternatively, check the "Amend Mode" box to load EXIF data from any selected image without auto-advancing. This is useful for copying metadata from one file to another.
