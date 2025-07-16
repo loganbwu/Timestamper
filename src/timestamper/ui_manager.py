@@ -15,7 +15,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QComboBox,
     QTreeWidget,
-    QSplitter
+    QSplitter,
+    QListWidget
 )
 from datetime import datetime
 
@@ -51,8 +52,10 @@ class UIManager:
     def _create_file_widgets(self):
         """Create file list and related widgets."""
         self.main_window.file_list = DragDropListWidget()
+        self.main_window.file_list.setViewMode(QListWidget.IconMode)
+        self.main_window.file_list.setResizeMode(QListWidget.Adjust)
         self.main_window.file_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.main_window.file_list.currentTextChanged.connect(self.main_window.select_file_from_list)
+        self.main_window.file_list.itemSelectionChanged.connect(self.main_window.on_file_selection_changed)
         self.main_window.file_list.filesDropped.connect(self.main_window.onFilesDropped)
         
         file_list_scroll = QScrollArea()

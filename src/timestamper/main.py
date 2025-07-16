@@ -1,5 +1,5 @@
-from PySide6.QtCore import Qt, QSettings, QDateTime
-from PySide6.QtGui import QAction, QPixmap, QKeySequence, QResizeEvent
+from PySide6.QtCore import Qt, QSettings, QDateTime, QSize
+from PySide6.QtGui import QAction, QPixmap, QKeySequence, QResizeEvent, QIcon
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem, QListWidgetItem
 from datetime import datetime
 from os import path
@@ -170,24 +170,39 @@ class MainWindow(QMainWindow):
         self.load_files(files)
 
     def load_files(self, files: list[str]) -> None:
-        """Loads a list of files into the file list."""
+        """Loads a list of files into the file list as thumbnails."""
         if not files:
             return
 
         self.files_done = []
         self.file_list.clear()
-        self.file_list.addItems(files)
-        self.file_list.sortItems()
-        self.file_list.setCurrentRow(0)
-        self.file_list.setFocus()
-    
-    def select_file_from_list(self, s: str) -> None:
-        """Handles the selection of a file from the list."""
-        self.current_path, is_done = self._get_clean_path(s)
+        
+        for file_path in sorted(files):
+            pixmap = QPixmap(file_path)
+            icon = QIcon(pixmap)
+            item = QListWidgetItem(icon, path.basename(file_path))
+            item.setData(Qt.UserRole, file_path)  # Store full path
+            item.setSizeHint(QSize(120, 120))
+            self.file_list.addItem(item)
 
-        if not self.current_path:
+        if self.file_list.count() > 0:
+            self.file_list.setCurrentRow(0)
+        self.file_list.setFocus()
+
+    def on_file_selection_changed(self) -> None:
+        """Handles the selection of a file from the list."""
+        selected_items = self.file_list.selectedItems()
+        if not selected_items:
             self.pic.setText("No picture selected.")
+            self.current_path = None
             return
+
+        # Use the first selected item for display purposes
+        item = selected_items[0]
+        file_path = item.data(Qt.UserRole)
+        is_done = self.file_list.row(item) in self.files_done
+        
+        self.current_path = file_path
 
         if not self._is_exiftool_available():
             return
@@ -200,14 +215,11 @@ class MainWindow(QMainWindow):
             logger.info("Populating form with existing image EXIF")
             self.populate_exif(self.current_exif)
 
-    def _get_clean_path(self, s: str) -> Tuple[str, bool]:
-        """Removes the 'done' icon from the path and returns the clean path and a boolean indicating if it was done."""
-        is_done = False
-        path_str = s
-        if len(s) >= len(self.done_icon) and s.startswith(self.done_icon):
-            path_str = s[len(self.done_icon):]
-            is_done = True
-        return path_str, is_done
+    def _get_clean_path(self, item: QListWidgetItem) -> Tuple[str, bool]:
+        """Gets the clean path from a list item and checks if it's marked as done."""
+        file_path = item.data(Qt.UserRole)
+        is_done = self.file_list.row(item) in self.files_done
+        return file_path, is_done
 
     def _is_exiftool_available(self) -> bool:
         """Checks if the exiftool executable is available and configured."""
@@ -305,11 +317,8 @@ class MainWindow(QMainWindow):
         """Saves the EXIF data to the selected file(s)."""
         selected_items = self.file_list.selectedItems()
         if not selected_items:
-            if self.file_list.currentItem():
-                selected_items = [self.file_list.currentItem()]
-            else:
-                self.statusBar().showMessage("No files selected.", 3000)
-                return
+            self.statusBar().showMessage("No files selected.", 3000)
+            return
 
         if not self._validate_all_numeric_inputs():
             return
@@ -318,7 +327,7 @@ class MainWindow(QMainWindow):
         
         saved_rows = []
         for item in selected_items:
-            file_path, _ = self._get_clean_path(item.text())
+            file_path, _ = self._get_clean_path(item)
             if self._execute_save(file_path, tags_to_save):
                 saved_rows.append(self.file_list.row(item))
 
@@ -393,7 +402,7 @@ class MainWindow(QMainWindow):
         for row in saved_rows:
             if row not in self.files_done:
                 item = self.file_list.item(row)
-                item.setText(self.done_icon + self._get_clean_path(item.text())[0])
+                # We can't easily add a text icon, so we'll just track it internally
                 self.files_done.append(row)
             last_saved_row = max(last_saved_row, row)
 
