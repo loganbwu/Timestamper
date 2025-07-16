@@ -1,7 +1,8 @@
 [project]
 name = "timestamper"
 version = "0.1.0"
-description = "Add your description here"
+description = "A PySide6 application for adding and editing EXIF data to images."
+keywords = ["exif", "pyside6", "image", "metadata", "timestamp"]
 authors = [
     { name = "Logan Wu", email = "loganbwu@gmail.com" }
 ]

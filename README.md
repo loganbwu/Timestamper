@@ -37,36 +37,29 @@ In theory, running `build.sh` with nuitka installed should create a standalone. 
 
 ## Development Plan
 
-This section outlines the planned improvements for Timestamper, focusing on code quality, user interface (UI), user experience (UX), and testing.
+This section outlines the planned improvements for Timestamper, focusing on code quality, user interface (UI), user experience (UX), and new features.
 
 ### Proposed Changes
 
-**A. Code Quality Improvements:**
-1.  **Refactor datetime adjustment button connections:** Consolidate individual button connections into a more concise loop. [x]
-2.  **Centralize constants:** Move hardcoded values (e.g., UI dimensions, magic strings) into a dedicated constants file or class for better maintainability. [x]
-3.  **Improve error handling for Exiftool:** Implement more specific `try-except` blocks for `exiftool` operations and provide user-friendly error messages. [x]
-4.  **Abstract preset management logic:** Create generic helper functions to reduce code duplication across camera and lens preset management. [x]
-5.  **Implement proper logging:** Replace `print` statements with Python's `logging` module for controlled and flexible output. [x]
-6.  **Fix typo in `on_wideaperturevalue_editingfinished`:** Correct a variable name typo to ensure proper function. [x]
-7.  **Validate input for `save` function:** Add validation for numeric input fields before saving to EXIF. [x]
-8.  **Prevent `_original` file creation:** Modify exiftool calls to prevent the creation of `_original` backup files. [x]
+**A. Code Quality & Maintainability**
 
-**B. UI/UX Enhancements:**
-1.  **Visual feedback for save operations:** Display a temporary status message (e.g., in a status bar) after successful EXIF data saves. [x]
-2.  **"Browse" button for Exiftool path:** Add a button next to the Exiftool path input field for easy executable selection. [x]
-3.  **Clear fields functionality:** Implement a mechanism to clear all input fields, allowing users to explicitly remove EXIF data. [x]
-4.  **Improve preset management UX:** Enhance feedback for saving/updating presets and address the default '(None)' issue in preset pickers. [x]
-5.  **Dynamic image preview resizing:** Ensure the image preview area resizes dynamically with the window while maintaining aspect ratio. [x]
-6.  **Tooltips for hotkeys:** Use tooltips to display hotkeys for datetime adjustment buttons for a cleaner UI. [x]
-7.  **Refine "Amend mode" clarity:** Consider renaming "Amend mode" to a more intuitive label (e.g., "Load EXIF for Editing") and provide clearer visual cues. [x]
+1.  **Uncomment and Fix `on_wideaperturevalue_editingfinished`**: The function `on_wideaperturevalue_editingfinished` is currently commented out in `main.py`. It will be uncommented and its signal connection restored to ensure it works as intended.
+2.  **Refactor Large Functions**: The `select_file_from_list` and `save` functions in `main.py` will be broken down into smaller, more focused functions to improve readability and maintainability.
+3.  **Add Docstrings and Type Hinting**: The codebase will be updated with docstrings and type hints for functions and classes to improve clarity and robustness.
+4.  **Improve `pyproject.toml`**: The `pyproject.toml` file will be updated to include more project metadata, such as the version, author, and description, to align with modern Python packaging standards.
+
+**B. UI/UX Enhancements**
+
+1.  **Improve Preset Matching on Load**: When a file is loaded, its EXIF data will be automatically matched to saved presets, selecting the correct camera and lens from the dropdowns.
+2.  **Add Drag-and-Drop Support**: Users will be able to drag and drop image files directly onto the file list for quicker loading.
+3.  **Visual Feedback for Preset Operations**: Clearer visual feedback will be added for saving or updating a preset.
+4.  **Smarter File Dialog Start Path**: The file dialog will open in a more user-friendly location (e.g., the user's home or pictures folder) instead of the application's directory.
+5.  **Folder Selection in File Dialog**: Users will be able to select a folder to load all supported image files within it.
+
+**C. New Features**
+
+1.  **Configuration File**: Support for a user-editable configuration file (e.g., `config.ini`) will be added for settings like the `exiftool` path.
 
 ### Testing Strategy
 
-To ensure continuous functionality, automated tests will be implemented using `pytest`.
-
-**Initial Steps:**
-1.  Add `pytest` to `requirements.txt`. [x]
-2.  Create a `tests/` directory. [x]
-3.  Create `tests/test_main.py` and `tests/test_offset_spin_box.py`. [x]
-4.  Implement unit tests for utility functions (`float_to_shutterspeed`, `parse_lensinfo`, `textFromValue`, `valueFromText`). [x]
-5.  Utilize `unittest.mock` to mock `exiftool` interactions for isolated testing of application logic. [x]
+To ensure continuous functionality, automated tests will be implemented using `pytest`. The existing test suite provides a good foundation, and new tests will be added to cover the new features and improvements.
