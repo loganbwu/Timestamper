@@ -32,7 +32,7 @@ In theory, running `build.sh` with nuitka installed should create a standalone. 
 ## Known issues
 
 - When populating EXIF ('amend' mode or selecting a previously saved image), the preset pickers do not check if the image matches a preset. Workaround is they default to '(None)' while EXIF fields remain populated.
-- When saving info, blank fields are not used, to avoid deleting existing information. However, this means there is currently no way to clear information.
+- When saving info, blank fields will now clear existing information, allowing for explicit removal of EXIF data.
 - In general, the preset input fields (both data fields and preset selectors) might not work as expected because of how the presets are saved on the device. Have a suggestion? Create an *Issue* on Github.
 
 ## Development Plan
@@ -49,6 +49,7 @@ This section outlines the planned improvements for Timestamper, focusing on code
 5.  **Implement proper logging:** Replace `print` statements with Python's `logging` module for controlled and flexible output. [x]
 6.  **Fix typo in `on_wideaperturevalue_editingfinished`:** Correct a variable name typo to ensure proper function. [x]
 7.  **Validate input for `save` function:** Add validation for numeric input fields before saving to EXIF. [x]
+8.  **Prevent `_original` file creation:** Modify exiftool calls to prevent the creation of `_original` backup files. [x]
 
 **B. UI/UX Enhancements:**
 1.  **Visual feedback for save operations:** Display a temporary status message (e.g., in a status bar) after successful EXIF data saves. [x]
