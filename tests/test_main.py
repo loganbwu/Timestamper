@@ -39,11 +39,11 @@ def mock_settings(monkeypatch):
 
 # Test float_to_shutterspeed
 def test_float_to_shutterspeed():
-    assert float_to_shutterspeed(0.5) == "1/2"
-    assert float_to_shutterspeed(1/60) == "1/60"
-    assert float_to_shutterspeed(1.0) == "1"
-    assert float_to_shutterspeed(2.0) == "2"
-    assert float_to_shutterspeed(0.001) == "1/1000"
+    assert float_to_shutterspeed(0.5) == "1/2s"
+    assert float_to_shutterspeed(1/60) == "1/60s"
+    assert float_to_shutterspeed(1.0) == "1s"
+    assert float_to_shutterspeed(2.0) == "2s"
+    assert float_to_shutterspeed(0.001) == "1/1000s"
 
 # Test parse_lensinfo
 def test_parse_lensinfo():
@@ -232,6 +232,7 @@ def test_preset_manager_add_load_remove_camera(qtbot, monkeypatch):
     # Test loading a camera preset
     mw.make.clear()
     mw.model.clear()
+    mw.preset_camera_name.setCurrentText("(None)")
     mw.preset_camera_name.setCurrentText("My Nikon")
     assert mw.make.text() == "Nikon"
     assert mw.model.text() == "D850"
@@ -295,6 +296,7 @@ def test_preset_manager_add_load_remove_lens(qtbot, monkeypatch):
     mw.wideaperturevalue.clear()
     mw.longaperturevalue.clear()
     mw.lensserialnumber.clear()
+    mw.preset_lens_name.setCurrentText("(None)")
     mw.preset_lens_name.setCurrentText("My Sigma 35mm")
     assert mw.lensmake.text() == "Sigma"
     assert mw.lensmodel.text() == "35mm Art"
@@ -313,8 +315,9 @@ def test_onLoadFilesButtonClick(qtbot, monkeypatch):
     mw = MainWindow()
     qtbot.addWidget(mw)
 
-    mock_file_dialog_result = (["/path/to/image1.jpg", "/path/to/image2.png"], "Images (*.jpg *.png)")
-    monkeypatch.setattr(QFileDialog, 'getOpenFileNames', lambda *args, **kwargs: mock_file_dialog_result)
+    mock_selected_files = ["/path/to/image1.jpg", "/path/to/image2.png"]
+    monkeypatch.setattr(QFileDialog, 'exec', lambda self: QFileDialog.Accepted)
+    monkeypatch.setattr(QFileDialog, 'selectedFiles', lambda self: mock_selected_files)
 
     mw.files_done = [0] # Simulate a file already marked as done
     mw.file_list.addItem("dummy_item") # Add a dummy item to ensure clear() works
@@ -372,7 +375,7 @@ def test_select_file_from_list_success(qtbot, monkeypatch):
     assert mw.info.topLevelItem(0).child(0).text(1) == "2023:01:15 10:30:00"
     assert mw.statusBar().currentMessage() == 'Opened EXIF for "/mock/path/to/image.jpg"'
 
-def test_select_file_from_list_amend_mode(qtbot, monkeypatch):
+def test_select_file_from_list_amend_mode(qtbot, monkeypatch, mock_settings):
     mw = MainWindow()
     qtbot.addWidget(mw)
 
@@ -545,7 +548,7 @@ def test_save_no_current_item(qtbot, monkeypatch):
     mw.save()
     mock_set_tags.assert_not_called() # Should not attempt to save if no item selected
 
-def test_save_numeric_validation_failure(qtbot, monkeypatch):
+def test_save_numeric_validation_failure(qtbot, monkeypatch, mock_settings):
     mw = MainWindow()
     qtbot.addWidget(mw)
 
@@ -553,9 +556,12 @@ def test_save_numeric_validation_failure(qtbot, monkeypatch):
     monkeypatch.setattr(mw.statusBar(), 'showMessage', mock_show_message)
 
     mw.current_path = "/mock/path/to/image.jpg"
-    mw.current_exif = {}
+    mw.current_exif = {"SourceFile": "/mock/path/to/image.jpg"}
+    # Prevent select_file_from_list from running and messing up the mock
+    monkeypatch.setattr(mw, 'select_file_from_list', lambda s: None)
     mw.file_list.addItem("/mock/path/to/image.jpg")
     mw.file_list.setCurrentRow(0)
+    mock_show_message.reset_mock()
 
     mw.iso.setText("invalid_iso") # Set invalid input
 
@@ -678,7 +684,7 @@ def test_save_post_save_list_management(qtbot, monkeypatch):
     assert mw.file_list.currentRow() == 0 # Stays on the same file
 
 # Test populate_exif functionality
-def test_populate_exif(qtbot):
+def test_populate_exif(qtbot, mock_settings):
     mw = MainWindow()
     qtbot.addWidget(mw)
 
