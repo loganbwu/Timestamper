@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, QSettings, QDateTime
 from PySide6.QtGui import QAction, QPixmap, QKeySequence, QResizeEvent
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem, QListWidgetItem
 from datetime import datetime
 from os import path
 import logging
@@ -302,16 +302,28 @@ class MainWindow(QMainWindow):
         return True
 
     def save(self) -> None:
-        """Saves the EXIF data to the current file."""
-        if self.file_list.currentItem() is None or not self.current_exif:
-            return
+        """Saves the EXIF data to the selected file(s)."""
+        selected_items = self.file_list.selectedItems()
+        if not selected_items:
+            if self.file_list.currentItem():
+                selected_items = [self.file_list.currentItem()]
+            else:
+                self.statusBar().showMessage("No files selected.", 3000)
+                return
 
         if not self._validate_all_numeric_inputs():
             return
 
         tags_to_save = self._prepare_exif_tags()
-        self._execute_save(tags_to_save)
-        self._advance_to_next_file()
+        
+        saved_rows = []
+        for item in selected_items:
+            file_path, _ = self._get_clean_path(item.text())
+            if self._execute_save(file_path, tags_to_save):
+                saved_rows.append(self.file_list.row(item))
+
+        if saved_rows:
+            self._advance_to_next_file(saved_rows)
 
     def _validate_all_numeric_inputs(self) -> bool:
         """Validates all numeric input fields."""
@@ -360,30 +372,36 @@ class MainWindow(QMainWindow):
         }
         return {k: v for k, v in tags.items() if v}
 
-    def _execute_save(self, tags: Dict[str, str]) -> None:
+    def _execute_save(self, file_path: str, tags: Dict[str, str]) -> bool:
         """Executes the save operation using exiftool."""
         try:
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                et.set_tags(self.current_path, tags=tags, params=["-overwrite_original"])
-            message = f'Saved EXIF to file: {tags}'
+                et.set_tags(file_path, tags=tags, params=["-overwrite_original"])
+            message = f'Saved EXIF to file: {file_path}'
             logger.info(message)
             self.statusBar().showMessage(message, 3000)
+            return True
         except Exception as e:
-            error_message = f'Error: Failed to save EXIF to "{self.current_path}". {e}'
+            error_message = f'Error: Failed to save EXIF to "{file_path}". {e}'
             logger.error(error_message)
             self.statusBar().showMessage(error_message, 5000)
+            return False
 
-    def _advance_to_next_file(self) -> None:
+    def _advance_to_next_file(self, saved_rows: list[int]) -> None:
         """Advances the selection to the next file in the list that has not been processed."""
-        selected_row = self.file_list.currentRow()
-        if selected_row not in self.files_done:
-            self.file_list.currentItem().setText(self.done_icon + self.file_list.currentItem().text())
-            self.files_done.append(selected_row)
+        last_saved_row = -1
+        for row in saved_rows:
+            if row not in self.files_done:
+                item = self.file_list.item(row)
+                item.setText(self.done_icon + self._get_clean_path(item.text())[0])
+                self.files_done.append(row)
+            last_saved_row = max(last_saved_row, row)
 
         n_files = self.file_list.count()
         if len(self.files_done) < n_files:
+            start_row = last_saved_row if last_saved_row != -1 else self.file_list.currentRow()
             for i in range(1, n_files):
-                next_row = (selected_row + i) % n_files
+                next_row = (start_row + i) % n_files
                 if next_row not in self.files_done:
                     self.file_list.setCurrentRow(next_row)
                     break

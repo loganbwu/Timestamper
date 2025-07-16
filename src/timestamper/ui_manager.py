@@ -2,6 +2,7 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QLabel,
     QPushButton,
@@ -50,6 +51,7 @@ class UIManager:
     def _create_file_widgets(self):
         """Create file list and related widgets."""
         self.main_window.file_list = DragDropListWidget()
+        self.main_window.file_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.main_window.file_list.currentTextChanged.connect(self.main_window.select_file_from_list)
         self.main_window.file_list.filesDropped.connect(self.main_window.onFilesDropped)
         
