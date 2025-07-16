@@ -36,6 +36,18 @@ Timestamper is ideal for:
 -   **Amend Mode:** Easily load, modify, and re-save the EXIF data of previously processed images.
 -   **Configurable `exiftool` Path:** Set the path to your `exiftool` executable through a simple settings dialog.
 
+## Development Plan
+
+Here are some of the features and improvements planned for future releases:
+
+-   **Apply to Selected:** Apply the current metadata to all selected files in the list simultaneously.
+-   **Thumbnail View:** Implement a thumbnail grid view for easier visual identification of images.
+-   **Undo Last Save:** Add a mechanism to revert the most recent EXIF save operation.
+-   **Centralized Settings:** Expand the settings dialog to manage more application preferences.
+-   **Reactive Preset Fields:** Make presets more intelligent. For example:
+    -   When selecting a lens preset with a specific aperture range (e.g., f/2.8-f/22), the aperture field will automatically adjust if its current value is outside that range.
+    -   When selecting a zoom lens preset (e.g., 24-70mm), the focal length field might be cleared or constrained to that range.
+
 ## Installation
 
 This project is managed using [Rye](https://rye-up.com/), which handles Python version management and package installation.
