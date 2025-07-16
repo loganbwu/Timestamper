@@ -1,6 +1,6 @@
 import pytest
 from timestamper.main import MainWindow
-from PySide6.QtCore import QSettings, QDateTime
+from PySide6.QtCore import QDateTime
 from timestamper.constants import EXIF_DATE_TIME_ORIGINAL
 import os
 from unittest import mock
