@@ -13,6 +13,7 @@ dependencies = [
     "shiboken6==6.6.1",
     "pytest>=8.4.1",
     "pytest-qt>=4.5.0",
+    "numpy==1.26.4",
 ]
 readme = "README.md"
 requires-python = ">= 3.12"

@@ -28,7 +28,16 @@ from constants import (
     IMAGE_PREVIEW_MAX_HEIGHT,
     NULL_PRESET_NAME,
     DONE_ICON,
-    DT_CONTROL_LIST
+    DT_CONTROL_LIST,
+    FILE_FILTER,
+    EXIF_DATE_TIME_ORIGINAL,
+    EXIF_EXPOSURE_TIME,
+    EXIF_LENS_INFO,
+    EXIF_MAKE,
+    EXIF_MODEL,
+    EXIF_OFFSET_TIME,
+    EXIF_OFFSET_TIME_ORIGINAL,
+    EXIF_SHUTTER_SPEED
 )
 from preset_manager import PresetManager
 
@@ -301,7 +310,7 @@ class MainWindow(QMainWindow):
 
     def onLoadFilesButtonClick(self):
         logger.info("Loading files...")
-        file_selection = QFileDialog.getOpenFileNames(self, caption="Select images", filter="Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff)")
+        file_selection = QFileDialog.getOpenFileNames(self, caption="Select images", filter=FILE_FILTER)
         self.files_done = [] # Reset markings for complete files
         self.file_list.clear()
         self.file_list.addItems(file_selection[0])
@@ -523,48 +532,45 @@ class MainWindow(QMainWindow):
         # Set focus to the file list
         self.file_list.setFocus()
     
+    def _populate_fields(self, exif, fields_map):
+        for key, widget in fields_map.items():
+            exif_key = f"EXIF:{key}"
+            if exif_key in exif:
+                value = exif[exif_key]
+                if isinstance(value, float):
+                    value = round(value, 3)
+                widget.setText(str(value))
+
     # Use EXIF to populated userform fields
     def populate_exif(self, exif):
         # Clear preset names. In future could make it try to find a matching preset.
         self.preset_camera_name.setCurrentText(NULL_PRESET_NAME)
         self.preset_lens_name.setCurrentText(NULL_PRESET_NAME)
-        
+
         # Handle simple text fields
-        # Use the fields_map from PresetManager to populate
-        for key, widget in self.camera_preset_manager.fields_map.items():
-            if 'EXIF:' + key in exif.keys():
-                value = exif[f"EXIF:{key}"]
-                if isinstance(value, float):
-                    value = round(value, 3)
-                widget.setText(str(value))
-        
-        for key, widget in self.lens_preset_manager.fields_map.items():
-            if 'EXIF:' + key in exif.keys():
-                value = exif[f"EXIF:{key}"]
-                if isinstance(value, float):
-                    value = round(value, 3)
-                widget.setText(str(value))
+        self._populate_fields(exif, self.camera_preset_manager.fields_map)
+        self._populate_fields(exif, self.lens_preset_manager.fields_map)
 
         # Handle more complicated fields
-        shutter_keys = ["EXIF:ExposureTime", "EXIF:ShutterSpeedValue"]
+        shutter_keys = [EXIF_EXPOSURE_TIME, EXIF_SHUTTER_SPEED]
         for k in shutter_keys:
-            if k in exif.keys():
+            if k in exif:
                 self.exposuretime.setText(self.float_to_shutterspeed(exif[k]))
                 break
 
-        if "EXIF:DateTimeOriginal" in exif.keys():
-            iso_dt = exif["EXIF:DateTimeOriginal"].replace(":", "-", 2)
+        if EXIF_DATE_TIME_ORIGINAL in exif:
+            iso_dt = exif[EXIF_DATE_TIME_ORIGINAL].replace(":", "-", 2)
             q_dt = QDateTime.fromString(iso_dt, format=Qt.DateFormat.ISODate)
             self.datetime.setDateTime(q_dt)
-        
-        offsettime_keys = ["EXIF:OffsetTimeOriginal", "EXIF:OffsetTime"]
+
+        offsettime_keys = [EXIF_OFFSET_TIME_ORIGINAL, EXIF_OFFSET_TIME]
         for k in offsettime_keys:
-            if k in exif.keys():
+            if k in exif:
                 self.offsettime.setValue(self.offsettime.valueFromText(exif[k]))
                 break
-            
-        if "EXIF:LensInfo" in exif.keys():
-            lensinfo_list = self.parse_lensinfo(exif["EXIF:LensInfo"])
+
+        if EXIF_LENS_INFO in exif:
+            lensinfo_list = self.parse_lensinfo(exif[EXIF_LENS_INFO])
             if lensinfo_list and len(lensinfo_list) == 4: # Ensure lensinfo_list is not None and has 4 elements
                 if lensinfo_list[0]:
                     self.widefocallength.setText(lensinfo_list[0])

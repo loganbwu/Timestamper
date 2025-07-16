@@ -1,6 +1,7 @@
 import pytest
 from main import MainWindow
 from PySide6.QtCore import QSettings, QDateTime
+from constants import EXIF_DATE_TIME_ORIGINAL
 from datetime import datetime
 import os
 from unittest import mock # Import mock directly
@@ -144,7 +145,7 @@ def test_save_exiftool_error(qtbot, monkeypatch):
 
     # Simulate loading a file so current_exif is not None
     mw.current_path = "/mock/path/to/image.jpg"
-    mw.current_exif = {"EXIF:DateTimeOriginal": "2023:01:01 12:00:00"}
+    mw.current_exif = {EXIF_DATE_TIME_ORIGINAL: "2023:01:01 12:00:00"}
     
     # Mock currentItem for save function
     mock_list_item = mock.Mock()

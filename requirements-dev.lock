@@ -12,6 +12,8 @@
 -e file:.
 iniconfig==2.1.0
     # via pytest
+numpy==1.26.4
+    # via timestamper
 packaging==25.0
     # via pytest
 pluggy==1.6.0
