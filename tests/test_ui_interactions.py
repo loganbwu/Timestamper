@@ -1,8 +1,8 @@
 import pytest
-from timestamper.main import MainWindow
+from src.timestamper.main import MainWindow
 from PySide6.QtCore import QSettings, QDateTime
-from timestamper.constants import EXIF_DATE_TIME_ORIGINAL
-from timestamper.utils import float_to_shutterspeed, parse_lensinfo
+from src.timestamper.constants import EXIF_DATE_TIME_ORIGINAL
+from src.timestamper.utils import float_to_shutterspeed, parse_lensinfo
 from datetime import datetime
 import os
 from unittest import mock
@@ -338,24 +338,6 @@ def test_set_executable(qtbot, monkeypatch):
     test_path = "/usr/local/bin/exiftool"
     mw.set_executable(test_path)
     mock_set_value.assert_called_once_with("exiftool", test_path)
-
-def test_browse_exiftool_path(qtbot, monkeypatch):
-    mw = MainWindow()
-    qtbot.addWidget(mw)
-
-    mock_file_dialog_exec = mock.Mock(return_value=QFileDialog.Accepted)
-    mock_file_dialog_selected_files = mock.Mock(return_value=["/new/path/to/exiftool"])
-    
-    monkeypatch.setattr(QFileDialog, 'exec', mock_file_dialog_exec)
-    monkeypatch.setattr(QFileDialog, 'selectedFiles', mock_file_dialog_selected_files)
-    
-    mock_set_executable = mock.Mock()
-    monkeypatch.setattr(mw, 'set_executable', mock_set_executable)
-
-    mw.browse_exiftool_path()
-
-    assert mw.executable.text() == "/new/path/to/exiftool"
-    mock_set_executable.assert_called_once_with("/new/path/to/exiftool")
 
 def test_clear_presets(qtbot, monkeypatch):
     mw = MainWindow()

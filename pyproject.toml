@@ -37,4 +37,4 @@ allow-direct-references = true
 packages = ["src/timestamper"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["."]

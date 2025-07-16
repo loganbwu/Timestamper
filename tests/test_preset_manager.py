@@ -1,5 +1,5 @@
 import pytest
-from timestamper.main import MainWindow
+from src.timestamper.main import MainWindow
 
 # Test PresetManager functionality
 def test_preset_manager_add_load_remove_camera(qtbot, monkeypatch):

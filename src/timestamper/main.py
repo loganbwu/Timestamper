@@ -1,9 +1,10 @@
 from PySide6.QtCore import Qt, QSettings, QDateTime
-from PySide6.QtGui import QAction, QPixmap, QKeySequence
+from PySide6.QtGui import QAction, QPixmap, QKeySequence, QResizeEvent
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem
 from datetime import datetime
 from os import path
 import logging
+from typing import Dict, Tuple, Any
 
 from .constants import (
     NULL_PRESET_NAME,
@@ -19,6 +20,7 @@ from .preset_manager import PresetManager
 from .ui_manager import UIManager
 from .exif_manager import ExifManager
 from .utils import validate_numeric_input, float_to_shutterspeed, parse_lensinfo
+from .settings_dialog import SettingsDialog
 import exiftool
 
 # Configure logging
@@ -29,7 +31,7 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Main application window for Timestamper."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the main window, UI components, and connections."""
         super(MainWindow, self).__init__()
 
@@ -52,7 +54,7 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("Ready")
 
-    def _setup_menu_bar(self):
+    def _setup_menu_bar(self) -> None:
         """Set up the application menu bar."""
         self.button_loadfiles = QAction("&Open...", self)
         self.button_loadfiles.setShortcut(QKeySequence.StandardKey.Open)
@@ -69,14 +71,19 @@ class MainWindow(QMainWindow):
         action_clear_fields = QAction("Clear Fields", self)
         action_clear_fields.triggered.connect(self.clear_fields)
 
+        action_settings = QAction("Settings", self)
+        action_settings.triggered.connect(self.open_settings_dialog)
+
         menu = self.menuBar()
         file_menu = menu.addMenu("File")
         file_menu.addAction(self.button_loadfiles)
         file_menu.addAction(action_save)
         file_menu.addAction(action_clear_fields)
         file_menu.addAction(button_clearpresets)
+        file_menu.addSeparator()
+        file_menu.addAction(action_settings)
 
-    def _setup_preset_managers(self):
+    def _setup_preset_managers(self) -> None:
         """Initialize the preset managers for cameras and lenses."""
         self.camera_fields = {
             "Make": self.make,
@@ -105,7 +112,7 @@ class MainWindow(QMainWindow):
         self.preset_lens_add.clicked.connect(lambda: self.lens_preset_manager.add_preset(self.preset_lens_name.currentText()))
         self.preset_lens_remove.clicked.connect(lambda: self.lens_preset_manager.remove_preset(self.preset_lens_name.currentText()))
     
-    def on_widefocallength_change(self, text: str):
+    def on_widefocallength_change(self, text: str) -> None:
         """Enables or disables the long focal length field based on input."""
         if text:
             self.longfocallength.setEnabled(True)
@@ -113,7 +120,7 @@ class MainWindow(QMainWindow):
             self.longfocallength.setDisabled(True)
             self.longfocallength.setText("")
             
-    def on_wideaperturevalue_change(self, text: str):
+    def on_wideaperturevalue_change(self, text: str) -> None:
         """Enables or disables the long aperture value field and prefills the f-number."""
         if text:
             self.longaperturevalue.setEnabled(True)
@@ -123,40 +130,58 @@ class MainWindow(QMainWindow):
             self.longaperturevalue.setDisabled(True)
             self.longaperturevalue.setText("")
             
-    def on_widefocallength_editingfinished(self):
+    def on_widefocallength_editingfinished(self) -> None:
         """Prefills the focal length field when editing is finished."""
         text = self.widefocallength.text()
         if text and not self.focallength.text() and not self.longfocallength.text():
             self.focallength.setText(text)
             
-    def on_wideaperturevalue_editingfinished(self):
+    def on_wideaperturevalue_editingfinished(self) -> None:
         """Prefills the f-number field when editing is finished."""
         text = self.wideaperturevalue.text()
         if text and not self.fnumber.text() and not self.longaperturevalue.text():
             self.fnumber.setText(text)
 
 
-    def onLoadFilesButtonClick(self):
+    def onLoadFilesButtonClick(self) -> None:
         """Opens a file dialog to select images or a folder and loads them into the file list."""
         logger.info("Loading files...")
         home_dir = path.expanduser("~")
         
         file_dialog = QFileDialog(self, "Select Images or a Folder", home_dir, FILE_FILTER)
-        file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        file_dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         
         if file_dialog.exec():
-            selected_files = file_dialog.selectedFiles()
-            if not selected_files:
-                return
+            selected_paths = file_dialog.selectedFiles()
+            selected_files = []
+            import os
+            for p in selected_paths:
+                if os.path.isdir(p):
+                    for file in os.listdir(p):
+                        if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff')):
+                            selected_files.append(os.path.join(p, file))
+                else:
+                    if p.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff')):
+                        selected_files.append(p)
+            self.load_files(selected_files)
 
-            self.files_done = []
-            self.file_list.clear()
-            self.file_list.addItems(selected_files)
-            self.file_list.sortItems()
-            self.file_list.setCurrentRow(0)
-            self.file_list.setFocus()
+    def onFilesDropped(self, files: list[str]) -> None:
+        """Handles files dropped onto the file list."""
+        self.load_files(files)
+
+    def load_files(self, files: list[str]) -> None:
+        """Loads a list of files into the file list."""
+        if not files:
+            return
+
+        self.files_done = []
+        self.file_list.clear()
+        self.file_list.addItems(files)
+        self.file_list.sortItems()
+        self.file_list.setCurrentRow(0)
+        self.file_list.setFocus()
     
-    def select_file_from_list(self, s: str):
+    def select_file_from_list(self, s: str) -> None:
         """Handles the selection of a file from the list."""
         self.current_path, is_done = self._get_clean_path(s)
 
@@ -175,7 +200,7 @@ class MainWindow(QMainWindow):
             logger.info("Populating form with existing image EXIF")
             self.populate_exif(self.current_exif)
 
-    def _get_clean_path(self, s: str) -> tuple[str, bool]:
+    def _get_clean_path(self, s: str) -> Tuple[str, bool]:
         """Removes the 'done' icon from the path and returns the clean path and a boolean indicating if it was done."""
         is_done = False
         path_str = s
@@ -195,7 +220,7 @@ class MainWindow(QMainWindow):
             return False
         return True
 
-    def _load_exif_data(self):
+    def _load_exif_data(self) -> None:
         """Loads EXIF data for the current file."""
         try:
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
@@ -209,7 +234,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(error_message, 5000)
             self.current_exif = None
 
-    def _update_exif_info_view(self):
+    def _update_exif_info_view(self) -> None:
         """Updates the EXIF info view with the current EXIF data."""
         self.info.clear()
         if not self.current_exif:
@@ -241,7 +266,7 @@ class MainWindow(QMainWindow):
         if items:
             self.info.topLevelItem(0).setExpanded(True)
 
-    def _update_image_preview(self):
+    def _update_image_preview(self) -> None:
         """Updates the image preview with the current image."""
         try:
             pixmap = QPixmap(self.current_path)
@@ -256,13 +281,13 @@ class MainWindow(QMainWindow):
             logger.error(f"Could not load image: {e}")
             self.pic.setText("No picture selected.")
     
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: QResizeEvent) -> None:
         """Handles the window resize event to update the image preview."""
         if self.current_path:
             self._update_image_preview()
         super().resizeEvent(event)
 
-    def adjust_datetime(self, x: tuple[int, int, int]):
+    def adjust_datetime(self, x: Tuple[int, int, int]) -> None:
         """Adjusts the datetime by the given days, hours, and minutes."""
         d, h, m = x
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
@@ -276,7 +301,7 @@ class MainWindow(QMainWindow):
             return False
         return True
 
-    def save(self):
+    def save(self) -> None:
         """Saves the EXIF data to the current file."""
         if self.file_list.currentItem() is None or not self.current_exif:
             return
@@ -305,7 +330,7 @@ class MainWindow(QMainWindow):
                 return False
         return True
 
-    def _prepare_exif_tags(self) -> dict:
+    def _prepare_exif_tags(self) -> Dict[str, str]:
         """Prepares a dictionary of EXIF tags to be saved."""
         a = self.widefocallength.text()
         b = self.longfocallength.text()
@@ -335,7 +360,7 @@ class MainWindow(QMainWindow):
         }
         return {k: v for k, v in tags.items() if v}
 
-    def _execute_save(self, tags: dict):
+    def _execute_save(self, tags: Dict[str, str]) -> None:
         """Executes the save operation using exiftool."""
         try:
             with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
@@ -348,7 +373,7 @@ class MainWindow(QMainWindow):
             logger.error(error_message)
             self.statusBar().showMessage(error_message, 5000)
 
-    def _advance_to_next_file(self):
+    def _advance_to_next_file(self) -> None:
         """Advances the selection to the next file in the list that has not been processed."""
         selected_row = self.file_list.currentRow()
         if selected_row not in self.files_done:
@@ -365,7 +390,7 @@ class MainWindow(QMainWindow):
         
         self.file_list.setFocus()
     
-    def _populate_fields(self, exif: dict, fields_map: dict):
+    def _populate_fields(self, exif: Dict[str, Any], fields_map: Dict[str, Any]) -> None:
         """Populates a set of fields from EXIF data."""
         for key, widget in fields_map.items():
             exif_key = f"EXIF:{key}"
@@ -375,7 +400,7 @@ class MainWindow(QMainWindow):
                     value = round(value, 3)
                 widget.setText(str(value))
 
-    def populate_exif(self, exif: dict):
+    def populate_exif(self, exif: Dict[str, Any]) -> None:
         """Populates the form fields with data from the provided EXIF dictionary."""
         # First, populate all fields from EXIF
         self._populate_fields(exif, self.camera_preset_manager.fields_map)
@@ -419,27 +444,22 @@ class MainWindow(QMainWindow):
         else:
             self.preset_lens_name.setCurrentText(NULL_PRESET_NAME)
 
-    def populate_exif_onchange(self, checked: int):
+    def populate_exif_onchange(self, checked: int) -> None:
         """Populates EXIF data when the 'Load EXIF for Editing' checkbox is changed."""
         if checked == 2 and self.current_exif:
             self.populate_exif(self.current_exif)
 
-    def set_executable(self, path: str):
+    def set_executable(self, path: str) -> None:
         """Sets the path to the exiftool executable in the application settings."""
         logger.info(f'Setting exiftool path to {path}')
         self.settings.setValue("exiftool", path)
 
-    def browse_exiftool_path(self):
-        """Opens a file dialog to browse for the exiftool executable."""
-        file_dialog = QFileDialog(self)
-        file_dialog.setFileMode(QFileDialog.ExistingFile)
-        file_dialog.setNameFilter("Executable Files (*)")
-        if file_dialog.exec():
-            selected_file = file_dialog.selectedFiles()[0]
-            self.executable.setText(selected_file)
-            self.set_executable(selected_file)
+    def open_settings_dialog(self) -> None:
+        """Opens the settings dialog."""
+        dialog = SettingsDialog(self)
+        dialog.exec()
 
-    def clear_presets(self):
+    def clear_presets(self) -> None:
         """Clears all saved camera and lens presets."""
         self.settings.remove("preset_cameras")
         self.settings.remove("preset_lenses")
@@ -447,7 +467,7 @@ class MainWindow(QMainWindow):
         self.camera_preset_manager.refresh_presets()
         self.lens_preset_manager.refresh_presets()
 
-    def clear_fields(self):
+    def clear_fields(self) -> None:
         """Clears all input fields to their default states."""
         for field in [self.make, self.model, self.lensmake, self.lensmodel,
                        self.widefocallength, self.longfocallength,

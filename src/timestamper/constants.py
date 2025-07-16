@@ -1,3 +1,5 @@
+"""Constants used throughout the Timestamper application."""
+
 # UI Dimensions
 IMAGE_PREVIEW_MAX_WIDTH = 560
 IMAGE_PREVIEW_MAX_HEIGHT = 480

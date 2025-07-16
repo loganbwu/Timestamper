@@ -1,5 +1,5 @@
-from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QComboBox, QLineEdit
+from PySide6.QtCore import QSettings, QTimer
+from PySide6.QtWidgets import QComboBox, QLineEdit, QWidget
 from typing import Callable
 from .constants import NULL_PRESET_NAME
 import logging
@@ -70,6 +70,12 @@ class PresetManager:
         message = f"Preset '{current_name}' for {self.preset_type} has been added."
         logger.info(message)
         self.status_bar_callback(message, 3000)
+        self.highlight_widget(self.combo_box)
+
+    def highlight_widget(self, widget: QWidget):
+        """Highlights a widget for a short period."""
+        widget.setStyleSheet("border: 1px solid #00FF00;")
+        QTimer.singleShot(1000, lambda: widget.setStyleSheet(""))
 
     def remove_preset(self, name: str):
         """Removes a preset."""
@@ -82,6 +88,7 @@ class PresetManager:
         message = f"Preset '{name}' for {self.preset_type} has been removed."
         logger.info(message)
         self.status_bar_callback(message, 3000)
+        self.highlight_widget(self.combo_box)
 
     def _remove_none_preset(self, presets: list[dict]) -> list[dict]:
         """Removes the '(None)' preset from a list of presets."""

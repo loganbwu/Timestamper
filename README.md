@@ -43,23 +43,25 @@ This section outlines the planned improvements for Timestamper, focusing on code
 
 **A. Code Quality & Maintainability**
 
-1.  **Uncomment and Fix `on_wideaperturevalue_editingfinished`**: The function `on_wideaperturevalue_editingfinished` is currently commented out in `main.py`. It will be uncommented and its signal connection restored to ensure it works as intended.
-2.  **Refactor Large Functions**: The `select_file_from_list` and `save` functions in `main.py` will be broken down into smaller, more focused functions to improve readability and maintainability.
-3.  **Add Docstrings and Type Hinting**: The codebase will be updated with docstrings and type hints for functions and classes to improve clarity and robustness.
-4.  **Improve `pyproject.toml`**: The `pyproject.toml` file will be updated to include more project metadata, such as the version, author, and description, to align with modern Python packaging standards.
+1.  **Add Docstrings and Type Hinting**: The codebase will be updated with docstrings and type hints for functions and classes to improve clarity and robustness.
 
 **B. UI/UX Enhancements**
 
-1.  **Improve Preset Matching on Load**: When a file is loaded, its EXIF data will be automatically matched to saved presets, selecting the correct camera and lens from the dropdowns.
-2.  **Add Drag-and-Drop Support**: Users will be able to drag and drop image files directly onto the file list for quicker loading.
-3.  **Visual Feedback for Preset Operations**: Clearer visual feedback will be added for saving or updating a preset.
-4.  **Smarter File Dialog Start Path**: The file dialog will open in a more user-friendly location (e.g., the user's home or pictures folder) instead of the application's directory.
-5.  **Folder Selection in File Dialog**: Users will be able to select a folder to load all supported image files within it.
+1.  **Add Drag-and-Drop Support**: Implement drag-and-drop functionality for image files onto the file list. The `src/timestamper/drag_drop_list_widget.py` already exists, suggesting this is a planned feature. This will need to be integrated into `main.py`.
+2.  **Visual Feedback for Preset Operations**: Add visual cues (e.g., status bar messages, temporary highlights) when presets are saved or updated.
+3.  **Smarter File Dialog Start Path**: Modify the file dialog to open in a more user-friendly default location.
+4.  **Folder Selection in File Dialog**: Enhance the file loading mechanism to allow selecting an entire folder.
 
 **C. New Features**
 
-1.  **Configuration File**: Support for a user-editable configuration file (e.g., `config.ini`) will be added for settings like the `exiftool` path.
+1.  **`exiftool` Path Configuration via GUI (using QSettings)**: Implement a settings dialog or menu option where users can browse for and save the path to their `exiftool` executable. This will use `QSettings` for persistence, aligning with existing preset management.
 
 ### Testing Strategy
 
 To ensure continuous functionality, automated tests will be implemented using `pytest`. The existing test suite provides a good foundation, and new tests will be added to cover the new features and improvements.
+
+### Developer Notes
+
+- **Keep the test suite up to date:** Whenever you add or modify a feature, please update the tests accordingly.
+- **Run tests frequently:** Run the test suite often to catch regressions early.
+- **Commit discrete changes:** Make small, atomic commits with clear messages. This helps in tracking changes and debugging.

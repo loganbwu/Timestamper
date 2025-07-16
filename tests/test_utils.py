@@ -1,5 +1,5 @@
 import pytest
-from timestamper.utils import float_to_shutterspeed, parse_lensinfo
+from src.timestamper.utils import float_to_shutterspeed, parse_lensinfo
 
 # Test float_to_shutterspeed
 @pytest.mark.parametrize("value, expected_speed", [

@@ -1,5 +1,5 @@
 import pytest
-from timestamper.OffsetSpinBox import DoubleOffsetSpinBox
+from src.timestamper.OffsetSpinBox import DoubleOffsetSpinBox
 # No need to import QApplication directly when using qtbot
 
 @pytest.mark.parametrize("value, expected_text", [

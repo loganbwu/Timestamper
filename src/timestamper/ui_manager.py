@@ -32,8 +32,8 @@ from .drag_drop_list_widget import DragDropListWidget
 
 class UIManager:
     """Manages the creation and layout of UI components."""
-    
-    def __init__(self, main_window):
+
+    def __init__(self, main_window: "MainWindow"):
         """Initialize the UI manager with a reference to the main window."""
         self.main_window = main_window
         self.settings = main_window.settings
@@ -43,7 +43,6 @@ class UIManager:
         self._create_file_widgets()
         self._create_image_widgets()
         self._create_info_widgets()
-        self._create_exiftool_widgets()
         self._create_datetime_widgets()
         self._create_control_buttons()
         self._create_equipment_widgets()
@@ -54,6 +53,7 @@ class UIManager:
         """Create file list and related widgets."""
         self.main_window.file_list = DragDropListWidget()
         self.main_window.file_list.currentTextChanged.connect(self.main_window.select_file_from_list)
+        self.main_window.file_list.filesDropped.connect(self.main_window.onFilesDropped)
         
         file_list_scroll = QScrollArea()
         file_list_scroll.setWidget(self.main_window.file_list)
@@ -82,15 +82,6 @@ class UIManager:
         info_scroll.setWidget(self.main_window.info)
         info_scroll.setWidgetResizable(True)
         self.main_window.info_scroll = info_scroll
-    
-    def _create_exiftool_widgets(self):
-        """Create exiftool path configuration widgets."""
-        self.main_window.executable = QLineEdit(self.settings.value("exiftool"))
-        self.main_window.executable.setPlaceholderText("Path ending in .../bin/exiftool, from exiftool.org.")
-        self.main_window.executable.textEdited.connect(self.main_window.set_executable)
-        
-        self.main_window.browse_exiftool_button = QPushButton("Browse")
-        self.main_window.browse_exiftool_button.clicked.connect(self.main_window.browse_exiftool_path)
     
     def _create_datetime_widgets(self):
         """Create datetime and offset widgets."""
@@ -190,13 +181,6 @@ class UIManager:
         layout_hud.addWidget(self.main_window.offsettime)
         layout_main.addLayout(layout_hud)
         
-        # Exiftool executable layout
-        layout_executable = QHBoxLayout()
-        layout_executable.addWidget(QLabel("exiftool"))
-        layout_executable.addWidget(self.main_window.executable)
-        layout_executable.addWidget(self.main_window.browse_exiftool_button)
-        layout_main.addLayout(layout_executable)
-        
         # Control buttons layout
         layout_buttons = QGridLayout()
         for i, button in enumerate(self.main_window.dt_buttons):
@@ -216,10 +200,10 @@ class UIManager:
         widget.setLayout(layout_main)
         self.main_window.setCentralWidget(widget)
     
-    def _create_equipment_layout(self):
+    def _create_equipment_layout(self) -> QGridLayout:
         """Create the equipment settings layout."""
         layout_extra = QGridLayout()
-        
+
         # Camera section
         layout_extra.addWidget(QLabel("Camera"), 0, 0, 1, 2)
         layout_extra.addWidget(QLabel("Camera make"), 1, 0)
@@ -262,10 +246,10 @@ class UIManager:
         
         return layout_extra
     
-    def _create_preset_layout(self):
+    def _create_preset_layout(self) -> QGridLayout:
         """Create the preset controls layout."""
         layout_preset = QGridLayout()
-        
+
         # Camera preset controls
         layout_preset.addWidget(QLabel("Camera preset"), 0, 0, 1, 2)
         layout_preset.addWidget(self.main_window.preset_camera_name, 1, 0, 1, 2)
