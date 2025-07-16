@@ -503,7 +503,7 @@ class MainWindow(QMainWindow):
             tags_filtered = {k: v for k, v in tags.items() if v != "" and v != None}
             try:
                 with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                    et.set_tags(self.current_path, tags = tags_filtered)
+                    et.set_tags(self.current_path, tags = tags_filtered, params=["-overwrite_original"])
                 message = f'Saved EXIF to file: {tags_filtered}'
                 logger.info(message)
                 self.statusBar().showMessage(message, 3000)
