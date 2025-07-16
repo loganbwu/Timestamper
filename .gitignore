@@ -2,8 +2,13 @@
 **/.DS_Store
 
 # Python related files
+.venv/
 venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 scratch.py
 hello.py
 

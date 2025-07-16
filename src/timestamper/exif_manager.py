@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 import exiftool
 from PySide6.QtCore import QDateTime, Qt
 
-from constants import (
+from .constants import (
     EXIF_DATE_TIME_ORIGINAL,
     EXIF_EXPOSURE_TIME,
     EXIF_LENS_INFO,
@@ -15,7 +15,7 @@ from constants import (
     EXIF_OFFSET_TIME_ORIGINAL,
     EXIF_SHUTTER_SPEED
 )
-from utils import float_to_shutterspeed, parse_lensinfo
+from .utils import float_to_shutterspeed, parse_lensinfo
 
 logger = logging.getLogger(__name__)
 

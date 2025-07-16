@@ -1,5 +1,5 @@
 import pytest
-from OffsetSpinBox import DoubleOffsetSpinBox
+from timestamper.OffsetSpinBox import DoubleOffsetSpinBox
 # No need to import QApplication directly when using qtbot
 
 def test_textFromValue(qtbot): # Use qtbot fixture

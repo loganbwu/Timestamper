@@ -1,7 +1,8 @@
 import pytest
-from main import MainWindow
+from timestamper.main import MainWindow
 from PySide6.QtCore import QSettings, QDateTime
-from constants import EXIF_DATE_TIME_ORIGINAL
+from timestamper.constants import EXIF_DATE_TIME_ORIGINAL
+from timestamper.utils import float_to_shutterspeed, parse_lensinfo
 from datetime import datetime
 import os
 from unittest import mock
@@ -37,20 +38,16 @@ def mock_settings(monkeypatch):
     return MockQSettings("Test", "Timestamper")
 
 # Test float_to_shutterspeed
-def test_float_to_shutterspeed(qtbot): # Use qtbot fixture
-    mw = MainWindow()
-    qtbot.addWidget(mw) # Add widget to qtbot for proper lifecycle management
-    assert mw.float_to_shutterspeed(0.5) == "1/2s"
-    assert mw.float_to_shutterspeed(1/60) == "1/60s"
-    assert mw.float_to_shutterspeed(1.0) == "1s"
-    assert mw.float_to_shutterspeed(2.0) == "2s"
-    assert mw.float_to_shutterspeed(0.001) == "1/1000s"
+def test_float_to_shutterspeed():
+    assert float_to_shutterspeed(0.5) == "1/2"
+    assert float_to_shutterspeed(1/60) == "1/60"
+    assert float_to_shutterspeed(1.0) == "1"
+    assert float_to_shutterspeed(2.0) == "2"
+    assert float_to_shutterspeed(0.001) == "1/1000"
 
 # Test parse_lensinfo
-def test_parse_lensinfo(qtbot): # Use qtbot fixture
-    mw = MainWindow()
-    qtbot.addWidget(mw) # Add widget to qtbot for proper lifecycle management
-    assert mw.parse_lensinfo("18 55 3.5 5.6") == ["18", "55", "3.5", "5.6"]
+def test_parse_lensinfo():
+    assert parse_lensinfo("18 55 3.5 5.6") == ["18", "55", "3.5", "5.6"]
 
 # Test _validate_numeric_input
 def test_validate_numeric_input(qtbot, monkeypatch):

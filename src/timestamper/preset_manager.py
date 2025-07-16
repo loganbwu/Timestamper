@@ -1,7 +1,7 @@
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QComboBox, QLineEdit
 from typing import Callable
-from constants import NULL_PRESET_NAME
+from .constants import NULL_PRESET_NAME
 import logging
 
 logger = logging.getLogger(__name__)

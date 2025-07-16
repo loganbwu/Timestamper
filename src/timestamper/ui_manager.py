@@ -20,14 +20,14 @@ from PySide6.QtWidgets import (
 )
 from datetime import datetime
 
-from constants import (
+from .constants import (
     IMAGE_PREVIEW_MAX_WIDTH,
     IMAGE_PREVIEW_MAX_HEIGHT,
     DONE_ICON,
     DT_CONTROL_LIST
 )
-from OffsetSpinBox import DoubleOffsetSpinBox
-from drag_drop_list_widget import DragDropListWidget
+from .OffsetSpinBox import DoubleOffsetSpinBox
+from .drag_drop_list_widget import DragDropListWidget
 
 
 class UIManager:
