@@ -517,18 +517,17 @@ class MainWindow(QMainWindow):
         if selected_row not in self.files_done:
             self.file_list.currentItem().setText(self.done_icon + self.file_list.currentItem().text())
             self.files_done.append(selected_row) # Mark as done
+        
         n_files = self.file_list.count()
-        prev_row = selected_row - 1
-        next_row = selected_row + 1
-        prev_is_todo = prev_row >= 0 and prev_row not in self.files_done
-        next_is_todo = next_row < n_files and next_row not in self.files_done
-        if next_is_todo:
-            self.file_list.setCurrentRow(next_row)
-        elif prev_is_todo:
-            self.file_list.setCurrentRow(prev_row)
-        elif next_row < n_files:
-            self.file_list.setCurrentRow(next_row)
-
+        
+        # Find next file to process, starting from the one after the current one
+        if len(self.files_done) < n_files:
+            for i in range(1, n_files):
+                next_row = (selected_row + i) % n_files
+                if next_row not in self.files_done:
+                    self.file_list.setCurrentRow(next_row)
+                    break
+        
         # Set focus to the file list
         self.file_list.setFocus()
     
