@@ -28,6 +28,7 @@ from .constants import (
 )
 from .OffsetSpinBox import DoubleOffsetSpinBox
 from .drag_drop_list_widget import DragDropListWidget
+from .thumbnail_delegate import ThumbnailDelegate
 
 
 class UIManager:
@@ -54,10 +55,11 @@ class UIManager:
         self.main_window.file_list = DragDropListWidget()
         self.main_window.file_list.setViewMode(QListWidget.IconMode)
         self.main_window.file_list.setResizeMode(QListWidget.Adjust)
-        self.main_window.file_list.setSpacing(10)
+        self.main_window.file_list.setSpacing(2)
         self.main_window.file_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.main_window.file_list.itemSelectionChanged.connect(self.main_window.on_file_selection_changed)
         self.main_window.file_list.filesDropped.connect(self.main_window.onFilesDropped)
+        self.main_window.file_list.setItemDelegate(ThumbnailDelegate(self.main_window.file_list))
         
         file_list_scroll = QScrollArea()
         file_list_scroll.setWidget(self.main_window.file_list)
@@ -182,6 +184,10 @@ class UIManager:
         self.main_window.preset_lens_name = QComboBox(editable=True)
         self.main_window.preset_lens_add = QPushButton("Save lens")
         self.main_window.preset_lens_remove = QPushButton("Remove lens")
+
+        # Settings button
+        self.main_window.settings_button = QPushButton("Settings")
+        self.main_window.settings_button.clicked.connect(self.main_window.open_settings_dialog)
     
     def setup_layouts(self):
         """Set up all layouts and add widgets to the main window."""
@@ -282,5 +288,8 @@ class UIManager:
         layout_preset.addWidget(self.main_window.preset_lens_name, 1, 2, 1, 2)
         layout_preset.addWidget(self.main_window.preset_lens_add, 2, 2)
         layout_preset.addWidget(self.main_window.preset_lens_remove, 2, 3)
+
+        # Settings button
+        layout_preset.addWidget(self.main_window.settings_button, 2, 4)
         
         return layout_preset

@@ -10,6 +10,7 @@ class DoubleOffsetSpinBox(QDoubleSpinBox):
         self.setRange(-14.0, 14.0) # Set a reasonable range for timezones
         self.setSingleStep(0.5)
         self.setDecimals(2) # Allow for .5 increments, but display as :30
+        self.editingFinished.connect(self._on_editing_finished)
 
     def textFromValue(self, val: float) -> str:
         """Converts a float value to a timezone offset string."""
@@ -105,3 +106,9 @@ class DoubleOffsetSpinBox(QDoubleSpinBox):
             return value
         except ValueError:
             return 0.0 # Return 0.0 for invalid input
+
+    def _on_editing_finished(self):
+        """Handles the end of manual editing to update the value."""
+        current_text = self.lineEdit().text()
+        value = self.valueFromText(current_text)
+        self.setValue(value)

@@ -41,6 +41,9 @@ class MainWindow(QMainWindow):
         self.ui_manager = UIManager(self)
         self._init_exif_manager()
 
+        if not self.exif_manager:
+            self._show_exiftool_error()
+
         # Set up menu bar
         self._setup_menu_bar()
 
@@ -184,7 +187,7 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(icon, path.basename(file_path))
             item.setData(Qt.UserRole, file_path)  # Store full path
             item.setData(Qt.UserRole + 1, False) # Initialize 'done' status to False
-            item.setSizeHint(QSize(120, 120))
+            item.setSizeHint(QSize(100, 100))
             self.file_list.addItem(item)
 
         if self.file_list.count() > 0:
@@ -235,11 +238,12 @@ class MainWindow(QMainWindow):
     def _show_exiftool_error(self):
         """Displays a dialog box to the user when exiftool is not configured."""
         msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Warning)
-        msg_box.setText("ExifTool Not Found")
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setText("ExifTool Not Found or Configured Incorrectly")
         msg_box.setInformativeText(
-            "The path to the `exiftool` executable is not set or is invalid. "
-            "Please set the correct path in the settings.\n\n"
+            "Timestamper requires <b>exiftool</b> to be installed and configured.\n\n"
+            "Please <a href='https://exiftool.org/install.html'>install exiftool</a>, "
+            "then open the Settings dialog to set the path to the executable.\n\n"
             "Would you like to open the Settings dialog now?"
         )
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
