@@ -101,6 +101,5 @@ This project is managed using [Rye](https://rye-up.com/), which handles Python v
 # Current issues
 - If the exiftool path is not specified (or not found), the program gives an error but does not help the user fix the issue. You can't guarantee people will read the README so the GUI should guide people to install exiftool if not available.
 - There is no GUI indication of how to access the settings dialog (either through the Files dropdown, which would also display the shortcut Command+, , or as a GUI button in the window).
-- There is no visual indication in the files list pane for which files have had their EXIF data modified and saved in the current session, like there used to be before switching to the thumbnail display. (I used to put a tick in front of the filename)
 - The thumbnail display in the files list pane has too much padding between the thumbnail and the filename. It could be more compact.
 - Manually editing the timezone input using the keyboard gets reverted when focusing off the input. Only clicking the +/- buttons successfully modifies the timezone.

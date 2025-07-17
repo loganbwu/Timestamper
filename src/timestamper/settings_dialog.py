@@ -17,6 +17,14 @@ class SettingsDialog(QDialog):
 
     def _create_exiftool_widgets(self):
         """Creates widgets for configuring the exiftool path."""
+        # Add a descriptive label if the exiftool path is not set
+        if not self.settings.value("exiftool"):
+            info_label = QLabel(
+                "<b>exiftool</b> not found. Please specify the path to the exiftool executable."
+            )
+            info_label.setWordWrap(True)
+            self.layout.addWidget(info_label)
+
         exiftool_layout = QHBoxLayout()
         
         label = QLabel("exiftool Path:")

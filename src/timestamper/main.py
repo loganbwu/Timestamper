@@ -1,3 +1,4 @@
+# This file is manually maintained. Do not overwrite.
 from PySide6.QtCore import Qt, QSettings, QDateTime, QSize
 from PySide6.QtGui import QAction, QPixmap, QKeySequence, QResizeEvent, QIcon
 from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem, QListWidgetItem, QMessageBox
@@ -40,9 +41,6 @@ class MainWindow(QMainWindow):
         # Initialize managers
         self.ui_manager = UIManager(self)
         self._init_exif_manager()
-
-        if not self.exif_manager:
-            self._show_exiftool_error()
 
         # Set up menu bar
         self._setup_menu_bar()
@@ -210,7 +208,7 @@ class MainWindow(QMainWindow):
         self.current_path = file_path
 
         if not self.exif_manager:
-            self._show_exiftool_error()
+            self.open_settings_dialog()
             return
 
         self._load_exif_data()
@@ -231,25 +229,13 @@ class MainWindow(QMainWindow):
         """Initializes the ExifManager with the path from settings."""
         exiftool_path = self.settings.value("exiftool")
         if exiftool_path and path.isfile(exiftool_path):
-            self.exif_manager = ExifManager(exiftool_path)
+            try:
+                self.exif_manager = ExifManager(exiftool_path)
+            except ExifToolNotFound:
+                self.exif_manager = None
+                self.open_settings_dialog()
         else:
             self.exif_manager = None
-
-    def _show_exiftool_error(self):
-        """Displays a dialog box to the user when exiftool is not configured."""
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Critical)
-        msg_box.setText("ExifTool Not Found or Configured Incorrectly")
-        msg_box.setInformativeText(
-            "Timestamper requires <b>exiftool</b> to be installed and configured.\n\n"
-            "Please <a href='https://exiftool.org/install.html'>install exiftool</a>, "
-            "then open the Settings dialog to set the path to the executable.\n\n"
-            "Would you like to open the Settings dialog now?"
-        )
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-        
-        if msg_box.exec() == QMessageBox.Yes:
             self.open_settings_dialog()
 
     def _load_exif_data(self) -> None:
@@ -261,7 +247,7 @@ class MainWindow(QMainWindow):
                 logger.info(message)
                 self.statusBar().showMessage(message, 3000)
         except ExifToolNotFound:
-            self._show_exiftool_error()
+            self.open_settings_dialog()
             self.current_exif = None
         except Exception as e:
             error_message = f'Error: Exiftool operation failed for "{self.current_path}". {e}'
@@ -430,7 +416,7 @@ class MainWindow(QMainWindow):
     def _execute_save(self, file_path: str, tags: Dict[str, str]) -> bool:
         """Executes the save operation using exiftool."""
         if not self.exif_manager:
-            self._show_exiftool_error()
+            self.open_settings_dialog()
             return False
         try:
             if self.exif_manager.save_exif_data(file_path, tags):
@@ -440,7 +426,7 @@ class MainWindow(QMainWindow):
                 return True
             return False
         except ExifToolNotFound:
-            self._show_exiftool_error()
+            self.open_settings_dialog()
             return False
         except Exception as e:
             error_message = f'Error: Failed to save EXIF to "{file_path}". {e}'
