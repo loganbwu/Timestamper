@@ -20,6 +20,11 @@ from .utils import float_to_shutterspeed, parse_lensinfo
 logger = logging.getLogger(__name__)
 
 
+class ExifToolNotFound(Exception):
+    """Custom exception for when exiftool is not found."""
+    pass
+
+
 class ExifManager:
     """Manages EXIF data operations for image files."""
     
@@ -34,6 +39,8 @@ class ExifManager:
                 exif_data = et.get_metadata(file_path)[0]
                 logger.info(f'Loaded EXIF for "{file_path}"')
                 return exif_data
+        except FileNotFoundError:
+            raise ExifToolNotFound
         except Exception as e:
             logger.error(f'Error loading EXIF for "{file_path}": {e}')
             return None
@@ -45,6 +52,8 @@ class ExifManager:
                 et.set_tags(file_path, tags=tags, params=["-overwrite_original"])
             logger.info(f'Saved EXIF to file: {tags}')
             return True
+        except FileNotFoundError:
+            raise ExifToolNotFound
         except Exception as e:
             logger.error(f'Error saving EXIF to "{file_path}": {e}')
             return False

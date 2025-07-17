@@ -54,6 +54,7 @@ class UIManager:
         self.main_window.file_list = DragDropListWidget()
         self.main_window.file_list.setViewMode(QListWidget.IconMode)
         self.main_window.file_list.setResizeMode(QListWidget.Adjust)
+        self.main_window.file_list.setSpacing(10)
         self.main_window.file_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.main_window.file_list.itemSelectionChanged.connect(self.main_window.on_file_selection_changed)
         self.main_window.file_list.filesDropped.connect(self.main_window.onFilesDropped)
@@ -108,7 +109,24 @@ class UIManager:
             button = QPushButton(f"{text} ({shortcut_key})")
             button.setShortcut(shortcut_key)
             button.setToolTip(f"Hotkey: {shortcut_key}")
-            button.clicked.connect(lambda values=adjustment_values: self.main_window.adjust_datetime(values))
+            # Connect to a specific slot in main_window that handles the adjustment
+            # We'll create a new method in main.py to handle this
+            if text == "+1d":
+                button.clicked.connect(self.main_window.adjust_datetime_plus_1d)
+            elif text == "-1d":
+                button.clicked.connect(self.main_window.adjust_datetime_minus_1d)
+            elif text == "+01:00":
+                button.clicked.connect(self.main_window.adjust_datetime_plus_1h)
+            elif text == "-01:00":
+                button.clicked.connect(self.main_window.adjust_datetime_minus_1h)
+            elif text == "+00:10":
+                button.clicked.connect(self.main_window.adjust_datetime_plus_10m)
+            elif text == "-00:10":
+                button.clicked.connect(self.main_window.adjust_datetime_minus_10m)
+            elif text == "+00:01":
+                button.clicked.connect(self.main_window.adjust_datetime_plus_1m)
+            elif text == "-00:01":
+                button.clicked.connect(self.main_window.adjust_datetime_minus_1m)
             dt_buttons.append(button)
         
         button_save = QPushButton("Save")

@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, QSettings, QDateTime, QSize
 from PySide6.QtGui import QAction, QPixmap, QKeySequence, QResizeEvent, QIcon
-from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem, QListWidgetItem
+from PySide6.QtWidgets import QMainWindow, QFileDialog, QTreeWidgetItem, QListWidgetItem, QMessageBox
 from datetime import datetime
 from os import path
 import logging
@@ -18,10 +18,9 @@ from .constants import (
 )
 from .preset_manager import PresetManager
 from .ui_manager import UIManager
-from .exif_manager import ExifManager
+from .exif_manager import ExifManager, ExifToolNotFound
 from .utils import validate_numeric_input, float_to_shutterspeed, parse_lensinfo
 from .settings_dialog import SettingsDialog
-import exiftool
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -40,7 +39,7 @@ class MainWindow(QMainWindow):
 
         # Initialize managers
         self.ui_manager = UIManager(self)
-        self.exif_manager = None  # Will be initialized when exiftool path is set
+        self._init_exif_manager()
 
         # Set up menu bar
         self._setup_menu_bar()
@@ -71,11 +70,13 @@ class MainWindow(QMainWindow):
         action_clear_fields = QAction("Clear Fields", self)
         action_clear_fields.triggered.connect(self.clear_fields)
 
-        action_settings = QAction("Settings", self)
+        action_settings = QAction("Settings...", self)
+        action_settings.setShortcut(QKeySequence.StandardKey.Preferences)
         action_settings.triggered.connect(self.open_settings_dialog)
 
         menu = self.menuBar()
         file_menu = menu.addMenu("File")
+        file_menu.setObjectName("File") # Add this line
         file_menu.addAction(self.button_loadfiles)
         file_menu.addAction(action_save)
         file_menu.addAction(action_clear_fields)
@@ -182,6 +183,7 @@ class MainWindow(QMainWindow):
             icon = QIcon(pixmap)
             item = QListWidgetItem(icon, path.basename(file_path))
             item.setData(Qt.UserRole, file_path)  # Store full path
+            item.setData(Qt.UserRole + 1, False) # Initialize 'done' status to False
             item.setSizeHint(QSize(120, 120))
             self.file_list.addItem(item)
 
@@ -204,7 +206,8 @@ class MainWindow(QMainWindow):
         
         self.current_path = file_path
 
-        if not self._is_exiftool_available():
+        if not self.exif_manager:
+            self._show_exiftool_error()
             return
 
         self._load_exif_data()
@@ -221,25 +224,41 @@ class MainWindow(QMainWindow):
         is_done = self.file_list.row(item) in self.files_done
         return file_path, is_done
 
-    def _is_exiftool_available(self) -> bool:
-        """Checks if the exiftool executable is available and configured."""
+    def _init_exif_manager(self):
+        """Initializes the ExifManager with the path from settings."""
         exiftool_path = self.settings.value("exiftool")
-        if not exiftool_path or not path.isfile(exiftool_path):
-            error_message = "Error: Could not find exiftool executable. Please check the path."
-            logger.error(error_message)
-            self.statusBar().showMessage(error_message, 5000)
-            self.current_exif = None
-            return False
-        return True
+        if exiftool_path and path.isfile(exiftool_path):
+            self.exif_manager = ExifManager(exiftool_path)
+        else:
+            self.exif_manager = None
+
+    def _show_exiftool_error(self):
+        """Displays a dialog box to the user when exiftool is not configured."""
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setText("ExifTool Not Found")
+        msg_box.setInformativeText(
+            "The path to the `exiftool` executable is not set or is invalid. "
+            "Please set the correct path in the settings.\n\n"
+            "Would you like to open the Settings dialog now?"
+        )
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.Yes)
+        
+        if msg_box.exec() == QMessageBox.Yes:
+            self.open_settings_dialog()
 
     def _load_exif_data(self) -> None:
         """Loads EXIF data for the current file."""
         try:
-            with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                self.current_exif = et.get_metadata(self.current_path)[0]
+            self.current_exif = self.exif_manager.load_exif_data(self.current_path)
+            if self.current_exif:
                 message = f'Opened EXIF for "{self.current_path}"'
                 logger.info(message)
                 self.statusBar().showMessage(message, 3000)
+        except ExifToolNotFound:
+            self._show_exiftool_error()
+            self.current_exif = None
         except Exception as e:
             error_message = f'Error: Exiftool operation failed for "{self.current_path}". {e}'
             logger.error(error_message)
@@ -299,12 +318,35 @@ class MainWindow(QMainWindow):
             self._update_image_preview()
         super().resizeEvent(event)
 
-    def adjust_datetime(self, x: Tuple[int, int, int]) -> None:
+    def adjust_datetime(self, d: int, h: int, m: int) -> None:
         """Adjusts the datetime by the given days, hours, and minutes."""
-        d, h, m = x
         new_dt = self.datetime.dateTime().addDays(d).addSecs(3600*h+60*m)
         logger.info(f'Setting datetime to {new_dt.toString()}')
         self.datetime.setDateTime(new_dt)
+
+    def adjust_datetime_plus_1d(self):
+        self.adjust_datetime(1, 0, 0)
+
+    def adjust_datetime_minus_1d(self):
+        self.adjust_datetime(-1, 0, 0)
+
+    def adjust_datetime_plus_1h(self):
+        self.adjust_datetime(0, 1, 0)
+
+    def adjust_datetime_minus_1h(self):
+        self.adjust_datetime(0, -1, 0)
+
+    def adjust_datetime_plus_10m(self):
+        self.adjust_datetime(0, 0, 10)
+
+    def adjust_datetime_minus_10m(self):
+        self.adjust_datetime(0, 0, -10)
+
+    def adjust_datetime_plus_1m(self):
+        self.adjust_datetime(0, 0, 1)
+
+    def adjust_datetime_minus_1m(self):
+        self.adjust_datetime(0, 0, -1)
 
     def _validate_numeric_input(self, field_name: str, text_value: str) -> bool:
         """Validates that a given text value can be cast to a float."""
@@ -383,13 +425,19 @@ class MainWindow(QMainWindow):
 
     def _execute_save(self, file_path: str, tags: Dict[str, str]) -> bool:
         """Executes the save operation using exiftool."""
+        if not self.exif_manager:
+            self._show_exiftool_error()
+            return False
         try:
-            with exiftool.ExifToolHelper(executable=self.settings.value("exiftool")) as et:
-                et.set_tags(file_path, tags=tags, params=["-overwrite_original"])
-            message = f'Saved EXIF to file: {file_path}'
-            logger.info(message)
-            self.statusBar().showMessage(message, 3000)
-            return True
+            if self.exif_manager.save_exif_data(file_path, tags):
+                message = f'Saved EXIF to file: {file_path}'
+                logger.info(message)
+                self.statusBar().showMessage(message, 3000)
+                return True
+            return False
+        except ExifToolNotFound:
+            self._show_exiftool_error()
+            return False
         except Exception as e:
             error_message = f'Error: Failed to save EXIF to "{file_path}". {e}'
             logger.error(error_message)
@@ -402,7 +450,8 @@ class MainWindow(QMainWindow):
         for row in saved_rows:
             if row not in self.files_done:
                 item = self.file_list.item(row)
-                # We can't easily add a text icon, so we'll just track it internally
+                item.setData(Qt.UserRole + 1, True) # Mark item as done
+                self.file_list.model().dataChanged.emit(self.file_list.model().index(row, 0), self.file_list.model().index(row, 0), [Qt.UserRole + 1])
                 self.files_done.append(row)
             last_saved_row = max(last_saved_row, row)
 
@@ -484,7 +533,8 @@ class MainWindow(QMainWindow):
     def open_settings_dialog(self) -> None:
         """Opens the settings dialog."""
         dialog = SettingsDialog(self)
-        dialog.exec()
+        if dialog.exec():
+            self._init_exif_manager()
 
     def clear_presets(self) -> None:
         """Clears all saved camera and lens presets."""

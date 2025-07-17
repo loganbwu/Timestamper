@@ -9,8 +9,8 @@ from unittest import mock
 
 import exiftool # Import exiftool for mocking exceptions
 import sys
-from PySide6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QAbstractItemView
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QListWidgetItem, QAbstractItemView, QMenu
+from PySide6.QtGui import QPixmap, QIcon, QKeySequence
 from PySide6.QtCore import QSize, Qt, QItemSelectionModel
 from unittest.mock import patch, MagicMock
 
@@ -157,60 +157,43 @@ def test_save_numeric_validation_failure(qtbot, monkeypatch, mock_settings):
     mock_set_tags.assert_not_called()
 
 def test_save_post_save_list_management(qtbot, monkeypatch):
-    mw = MainWindow()
-    qtbot.addWidget(mw)
+    with patch('src.timestamper.main.ExifManager') as mock_exif_manager:
+        mw = MainWindow()
+        qtbot.addWidget(mw)
+        mw.exif_manager = mock_exif_manager.return_value
+        mw.exif_manager.save_exif_data.return_value = True
+        mw.exif_manager.load_exif_data.return_value = {"SourceFile": "/mock/path/to/image.jpg"}
 
-    mock_exif_data = {"SourceFile": "/mock/path/to/image.jpg"}
-    class MockExifToolHelperSaveSuccess:
-        def __init__(self, executable):
-            pass
-        def __enter__(self):
-            return self
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            pass
-        def get_metadata(self, path):
-            return [mock_exif_data]
-        def set_tags(self, path, tags, params):
-            pass
+        with mock.patch('src.timestamper.main.QPixmap'), mock.patch('src.timestamper.main.QIcon', return_value=QIcon()):
+            # Scenario 1: Save first file, move to next
+            mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
+            mw.file_list.setCurrentRow(0)
+            mw.save()
+            assert 0 in mw.files_done
+            assert mw.file_list.currentRow() == 1
 
-    monkeypatch.setattr(exiftool, 'ExifToolHelper', MockExifToolHelperSaveSuccess)
-    monkeypatch.setattr(mw.settings, 'value', lambda key, default=None: "/mock/path/to/exiftool")
-    monkeypatch.setattr(os.path, 'isfile', lambda x: True)
+            # Scenario 2: Save middle file, move to next available (file3)
+            mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
+            mw.files_done = [0]
+            mw.file_list.setCurrentRow(1)
+            mw.save()
+            assert 1 in mw.files_done
+            assert mw.file_list.currentRow() == 2
 
-    with mock.patch('PySide6.QtGui.QPixmap'), mock.patch('PySide6.QtGui.QIcon'):
-        # Scenario 1: Save first file, move to next
-        mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
-        mw.file_list.setCurrentRow(0)
-        mw.current_exif = mock_exif_data
-        mw.save()
-        assert 0 in mw.files_done
-        assert mw.file_list.currentRow() == 1
+            # Scenario 3: Save last file, no next available, move to previous todo
+            mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
+            mw.files_done = [1]
+            mw.file_list.setCurrentRow(2)
+            mw.save()
+            assert 2 in mw.files_done
+            assert mw.file_list.currentRow() == 0
 
-        # Scenario 2: Save middle file, move to next available (file3)
-        mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
-        mw.files_done = [0]
-        mw.file_list.setCurrentRow(1)
-        mw.current_exif = mock_exif_data
-        mw.save()
-        assert 1 in mw.files_done
-        assert mw.file_list.currentRow() == 2 # Should skip file1 and go to file3
-
-        # Scenario 3: Save last file, no next available, move to previous todo
-        mw.load_files(["file1.jpg", "file2.jpg", "file3.jpg"])
-        mw.files_done = [1]
-        mw.file_list.setCurrentRow(2)
-        mw.current_exif = mock_exif_data
-        mw.save()
-        assert 2 in mw.files_done
-        assert mw.file_list.currentRow() == 0 # Should go to file1 (previous todo)
-
-        # Scenario 4: Save only file
-        mw.load_files(["single_file.jpg"])
-        mw.file_list.setCurrentRow(0)
-        mw.current_exif = mock_exif_data
-        mw.save()
-        assert 0 in mw.files_done
-        assert mw.file_list.currentRow() == 0 # Stays on the same file
+            # Scenario 4: Save only file
+            mw.load_files(["single_file.jpg"])
+            mw.file_list.setCurrentRow(0)
+            mw.save()
+            assert 0 in mw.files_done
+            assert mw.file_list.currentRow() == 0
 
 def test_populate_exif_onchange(qtbot, monkeypatch):
     mw = MainWindow()
@@ -240,12 +223,12 @@ def test_adjust_datetime(qtbot):
     mw.datetime.setDateTime(initial_dt)
 
     # Add 1 day, 2 hours, 30 minutes
-    mw.adjust_datetime((1, 2, 30))
+    mw.adjust_datetime(1, 2, 30)
     assert mw.datetime.dateTime().toString("yyyy:MM:dd HH:mm:ss") == "2023:01:16 13:00:00"
 
     # Subtract 1 day, 2 hours, 30 minutes
     mw.datetime.setDateTime(initial_dt)
-    mw.adjust_datetime((-1, -2, -30))
+    mw.adjust_datetime(-1, -2, -30)
     assert mw.datetime.dateTime().toString("yyyy:MM:dd HH:mm:ss") == "2023:01:14 08:00:00"
 
 # Test on_widefocallength_change and on_widefocallength_editingfinished
@@ -316,18 +299,43 @@ def test_clear_presets(qtbot, monkeypatch):
     mock_refresh_lens.assert_called_once()
 
 
+from PySide6.QtWidgets import QMenu
+
+def test_settings_action_in_menu(qtbot):
+    """Test that the Settings action is in the File menu with the correct shortcut."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    
+    file_menu = window.menuBar().findChild(QMenu, 'File')
+    assert file_menu is not None
+    
+    settings_action = None
+    for action in file_menu.actions():
+        if action.text() == "Settings...":
+            settings_action = action
+            break
+            
+    assert settings_action is not None
+    assert settings_action.shortcut() == QKeySequence.StandardKey.Preferences
+
+
 @pytest.fixture
 def mw_new(qtbot):
     """Create and return a MainWindow instance for new features."""
-    window = MainWindow()
-    qtbot.addWidget(window)
-    # Mock exiftool for all tests in this file
-    with mock.patch('exiftool.ExifToolHelper') as mock_exiftool, \
-         mock.patch.object(window, '_is_exiftool_available', return_value=True):
-        # Configure the mock to return some basic metadata
-        mock_instance = mock_exiftool.return_value.__enter__.return_value
-        mock_instance.get_metadata.return_value = [{'SourceFile': 'mock.jpg'}]
-        # The signal is already connected in the UIManager, no need to reconnect here.
+    with patch('src.timestamper.main.ExifManager') as mock_exif_manager:
+        # Configure the mock manager to behave as if exiftool is correctly configured
+        mock_instance = mock_exif_manager.return_value
+        mock_instance.load_exif_data.return_value = {'SourceFile': 'mock.jpg'}
+        mock_instance.save_exif_data.return_value = True
+
+        window = MainWindow()
+        qtbot.addWidget(window)
+        
+        # Since __init__ now calls _init_exif_manager, we need to ensure 
+        # the mock is in place before MainWindow is created.
+        # Or, we can re-initialize the manager on the created window instance.
+        window.exif_manager = mock_instance
+        
         yield window
 
 def test_apply_to_selected_save(mw_new, qtbot):
@@ -384,3 +392,22 @@ def test_selection_change_updates_ui(mw_new, qtbot):
         mock_update_exif.assert_called_once()
         mock_update_preview.assert_called_once()
         assert mw_new.current_path == "/path/to/image2.jpg"
+
+
+def test_file_done_indicator(mw_new, qtbot):
+    """Test that a checkmark appears next to a file after it's saved."""
+    files = ["/path/to/image1.jpg", "/path/to/image2.jpg"]
+    with mock.patch('src.timestamper.main.QPixmap'), mock.patch('src.timestamper.main.QIcon', return_value=QIcon()):
+        mw_new.load_files(files)
+    
+    # Select the first file and save it
+    mw_new.file_list.setCurrentRow(0)
+    mw_new.save()
+    
+    # Assert that the 'done' status is set for the first item
+    item = mw_new.file_list.item(0)
+    assert item.data(Qt.UserRole + 1) == True
+    
+    # Verify that the second item is not marked as done
+    item2 = mw_new.file_list.item(1)
+    assert item2.data(Qt.UserRole + 1) == False
