@@ -185,7 +185,6 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(icon, path.basename(file_path))
             item.setData(Qt.UserRole, file_path)  # Store full path
             item.setData(Qt.UserRole + 1, False) # Initialize 'done' status to False
-            item.setSizeHint(QSize(100, 80))
             self.file_list.addItem(item)
 
         if self.file_list.count() > 0:

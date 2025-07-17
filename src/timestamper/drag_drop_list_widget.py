@@ -41,14 +41,8 @@ class FileListItemDelegate(QStyledItemDelegate):
         """Returns the size hint for the item, adjusting for padding."""
         # Get the default size hint
         size = super().sizeHint(option, index)
-        
-        # Reduce vertical padding if needed, or adjust overall size
-        # The default QListWidgetItem.setSizeHint(QSize(120, 120)) is already quite large.
-        # We might want to make the default smaller in main.py if this is still too big.
-        # For now, let's just ensure it's not excessively padded by the delegate.
-        # This is where you'd adjust for the "too much padding" issue (Issue #6)
-        # For now, I'll keep it simple and just return the super's size.
-        # The main padding issue is likely in the QListWidget's view mode or item size hint.
+        # Set a fixed height to reduce vertical padding
+        size.setHeight(40)
         return size
 
 
