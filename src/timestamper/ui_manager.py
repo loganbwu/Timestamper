@@ -1,6 +1,6 @@
 """UI management for the Timestamper application."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -55,9 +55,8 @@ class UIManager:
     def _create_file_widgets(self):
         """Create file list and related widgets."""
         self.main_window.file_list = DragDropListWidget()
-        self.main_window.file_list.setViewMode(QListWidget.IconMode)
-        self.main_window.file_list.setResizeMode(QListWidget.Adjust)
-        self.main_window.file_list.setSpacing(2)
+        self.main_window.file_list.setViewMode(QListWidget.ListMode)
+        self.main_window.file_list.setIconSize(QSize(32, 32))
         self.main_window.file_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.main_window.file_list.itemSelectionChanged.connect(self.main_window.on_file_selection_changed)
         self.main_window.file_list.filesDropped.connect(self.main_window.onFilesDropped)
