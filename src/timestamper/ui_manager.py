@@ -210,9 +210,8 @@ class UIManager:
         
         # HUD layout (datetime controls)
         layout_hud = QHBoxLayout()
-        layout_hud.addWidget(self.main_window.datetime)
+        layout_hud.addWidget(self.main_window.datetime, 1)
         layout_hud.addWidget(self.main_window.offsettime)
-        layout_hud.addStretch()
         layout_hud.addWidget(self.main_window.settings_button)
         layout_main.addLayout(layout_hud)
         

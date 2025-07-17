@@ -99,5 +99,4 @@ This project is managed using [Rye](https://rye-up.com/), which handles Python v
     -   Alternatively, check the "Amend Mode" box to load EXIF data from any selected image without auto-advancing. This is useful for copying metadata from one file to another.
 
 # Current issues
-- There is no GUI indication of how to access the settings dialog (either through the Files dropdown, which would also display the shortcut Command+, , or as a GUI button in the window).
 - The thumbnail display in the files list pane has too much padding between the thumbnail and the filename. It could be more compact.
