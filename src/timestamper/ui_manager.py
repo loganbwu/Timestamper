@@ -1,6 +1,7 @@
 """UI management for the Timestamper application."""
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -16,7 +17,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QTreeWidget,
     QSplitter,
-    QListWidget
+    QListWidget,
+    QStyle,
 )
 from datetime import datetime
 
@@ -144,6 +146,13 @@ class UIManager:
         dt_buttons.append(self.main_window.amend_mode)
         dt_buttons.append(button_save)
         self.main_window.dt_buttons = dt_buttons
+
+        self.main_window.settings_button = QPushButton()
+        style = self.main_window.style()
+        icon = style.standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
+        self.main_window.settings_button.setIcon(icon)
+        self.main_window.settings_button.setToolTip("Settings")
+        self.main_window.settings_button.clicked.connect(self.main_window.open_settings_dialog)
     
     def _create_equipment_widgets(self):
         """Create camera and lens equipment widgets."""
@@ -185,9 +194,6 @@ class UIManager:
         self.main_window.preset_lens_add = QPushButton("Save lens")
         self.main_window.preset_lens_remove = QPushButton("Remove lens")
 
-        # Settings button
-        self.main_window.settings_button = QPushButton("Settings")
-        self.main_window.settings_button.clicked.connect(self.main_window.open_settings_dialog)
     
     def setup_layouts(self):
         """Set up all layouts and add widgets to the main window."""
@@ -206,6 +212,8 @@ class UIManager:
         layout_hud = QHBoxLayout()
         layout_hud.addWidget(self.main_window.datetime)
         layout_hud.addWidget(self.main_window.offsettime)
+        layout_hud.addStretch()
+        layout_hud.addWidget(self.main_window.settings_button)
         layout_main.addLayout(layout_hud)
         
         # Control buttons layout
@@ -289,7 +297,5 @@ class UIManager:
         layout_preset.addWidget(self.main_window.preset_lens_add, 2, 2)
         layout_preset.addWidget(self.main_window.preset_lens_remove, 2, 3)
 
-        # Settings button
-        layout_preset.addWidget(self.main_window.settings_button, 2, 4)
         
         return layout_preset

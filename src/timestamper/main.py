@@ -233,10 +233,8 @@ class MainWindow(QMainWindow):
                 self.exif_manager = ExifManager(exiftool_path)
             except ExifToolNotFound:
                 self.exif_manager = None
-                self.open_settings_dialog()
         else:
             self.exif_manager = None
-            self.open_settings_dialog()
 
     def _load_exif_data(self) -> None:
         """Loads EXIF data for the current file."""

@@ -18,39 +18,39 @@ def mw(qtbot):
         yield window
 
 def test_select_file_from_list_exiftool_error(mw, qtbot):
-    """Test that the error dialog is shown when loading EXIF fails."""
+    """Test that the settings dialog is shown when loading EXIF fails."""
     mw.exif_manager.load_exif_data.side_effect = ExifToolNotFound
-    
-    with patch.object(mw, '_show_exiftool_error') as mock_show_error:
+
+    with patch.object(mw, 'open_settings_dialog') as mock_open_settings:
         with patch('src.timestamper.main.QPixmap'), patch('src.timestamper.main.QIcon', return_value=QIcon()):
             mw.load_files(["/mock/path/to/image.jpg"])
         mw.file_list.setCurrentRow(0)
-        
-        mock_show_error.assert_called_once()
+
+        mock_open_settings.assert_called_once()
         assert mw.current_exif is None
 
 def test_save_exiftool_error(mw, qtbot):
-    """Test that the error dialog is shown when saving EXIF fails."""
+    """Test that the settings dialog is shown when saving EXIF fails."""
     mw.exif_manager.save_exif_data.side_effect = ExifToolNotFound
 
-    with patch.object(mw, '_show_exiftool_error') as mock_show_error:
+    with patch.object(mw, 'open_settings_dialog') as mock_open_settings:
         with patch('src.timestamper.main.QPixmap'), patch('src.timestamper.main.QIcon', return_value=QIcon()):
             mw.load_files(["/mock/path/to/image.jpg"])
         mw.file_list.setCurrentRow(0)
         mw.save()
-        
-        mock_show_error.assert_called_once()
+
+        mock_open_settings.assert_called_once()
 
 def test_select_file_from_list_no_exiftool_path(mw, qtbot):
-    """Test that the error dialog is shown when exiftool is not configured."""
-    mw.exif_manager = None # Simulate exiftool not being configured
+    """Test that the settings dialog is shown when exiftool is not configured."""
+    mw.exif_manager = None  # Simulate exiftool not being configured
 
-    with patch.object(mw, '_show_exiftool_error') as mock_show_error:
+    with patch.object(mw, 'open_settings_dialog') as mock_open_settings:
         with patch('src.timestamper.main.QPixmap'), patch('src.timestamper.main.QIcon', return_value=QIcon()):
             mw.load_files(["/mock/path/to/image.jpg"])
         mw.file_list.setCurrentRow(0)
-        
-        mock_show_error.assert_called_once()
+
+        mock_open_settings.assert_called_once()
         assert mw.current_exif is None
 
 def test_select_file_from_list_success(mw, qtbot):
