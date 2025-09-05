@@ -9,9 +9,9 @@ def float_to_shutterspeed(value: float) -> str:
     """Converts a float value to a shutter speed string."""
     if float(value) < 1:
         inv_shutterspeed = 1/float(value)
-        return f"1/{inv_shutterspeed:g}s"
+        return f"1/{inv_shutterspeed:g}"
     else:
-        return f"{value:g}s"
+        return f"{value:g}"
 
 
 def parse_lensinfo(lensinfo: str) -> list[str] | None:

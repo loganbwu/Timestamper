@@ -102,7 +102,7 @@ def test_populate_exif(mw, qtbot):
 
     assert mw.make.text() == "TestMake"
     assert mw.model.text() == "TestModel"
-    assert mw.exposuretime.text() == "1/100s"
+    assert mw.exposuretime.text() == "1/100"
     assert mw.datetime.dateTime().toString("yyyy:MM:dd HH:mm:ss") == "2023:01:15 10:30:00"
     assert mw.offsettime.value() == 8.0
     assert mw.widefocallength.text() == "18"
