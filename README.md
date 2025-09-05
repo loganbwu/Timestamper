@@ -77,6 +77,10 @@ This project is managed using [Rye](https://rye-up.com/), which handles Python v
     ```bash
     rye run timestamper
     ```
+    
+    **Alternative methods:**
+    - If you have the package installed: `timestamper`
+    - Using Python module syntax: `python -m timestamper.app`
 
 2.  **Configure ExifTool:**
     The first time you run the app, go to `File -> Settings` and set the path to your `exiftool` executable. This is a one-time setup.
@@ -97,6 +101,24 @@ This project is managed using [Rye](https://rye-up.com/), which handles Python v
 6.  **Amend Data (Optional):**
     -   If you need to correct a previously saved image, simply select it from the list. The saved data will populate the fields.
     -   Alternatively, check the "Amend Mode" box to load EXIF data from any selected image without auto-advancing. This is useful for copying metadata from one file to another.
+
+## Troubleshooting
+
+### ImportError: attempted relative import with no known parent package
+
+If you encounter this error, it means you're trying to run the application incorrectly. **Do not** run the Python file directly like this:
+```bash
+python src/timestamper/app.py  # ❌ This will fail
+```
+
+Instead, use one of the proper methods listed in the Usage section above:
+```bash
+rye run timestamper           # ✅ Recommended
+timestamper                   # ✅ If installed
+python -m timestamper.app     # ✅ Module syntax
+```
+
+The error occurs because Python needs to understand the package structure when using relative imports (like `from .main import MainWindow`). Running the file directly bypasses this package context.
 
 # Current issues
 - The thumbnail display in the files list pane has too much padding between the thumbnail and the filename. It could be more compact.

@@ -1,0 +1,380 @@
+4	Working with Metadata
+¥ A plug-in can define customized metadata fields for photos by declaring a Metadata Provider in the information file, and defining type and version information for each field. See ÒAdding custom metadataÓ on page 70.
+¥ A plug-in can specify metadata tagsets that affect the display of custom metadata fields in the Library moduleÕs Metadata panel. See ÒAdding custom metadata tagsetsÓ on page 75.
+¥ Plug-ins can define complex searches that find photos according to metadata values. See ÒSearching for photos by metadata valuesÓ on page 77.
+Adding custom metadata
+Your plug-in can define custom metadata fields for photos that are imported into Lightroom Classic. These fields can be visible and even editable in Lightroom Classic's Metadata panel, or can be invisible and used to store private data. 
+Declaring a Metadata Provider 
+Like an Export Service or Export Filter Provider, you declare a Metadata Provider in the information file (Info.lua) for your plug-in. See ÒWriting standard plug-ins for Lightroom ClassicÓ on page 22. 
+To declare a Metadata Provider, include an LrMetadataProvider entry in the Info.lua file; for example:
+return {
+LrSdkVersion = 5.0,
+LrToolkitIdentifier = 'com.adobe.lightroom.metadata.sample',
+LrPluginName = LOC "$$$/CustomMetadata/PluginName=Metadata Sample",
+LrMetadataProvider = 'SampleMetadataDefinition.lua',
+}
+The information file that declares a Metadata Provider can also declare metadata tagsets (see ÒAdding custom metadata tagsetsÓ on page 75), export services and/or filters, but need not do so. 
+Limitations of custom metadata in this release
+In the current implementation, custom metadata defined by a plug-in has these limitations, which will be addressed in future versions of the Lightroom Classic SDK:
+¥ Values stored in custom metadata fields are stored only in Lightroom Classic's database. In the current release, a plug-in cannot link custom metadata fields to XMP values or save them with the image file. 
+¥ A plug-in cannot specify complex data types. You can define simple fields per photo, but you cannot define a whole spreadsheet per photo. 
+     70
+Defining metadata fields
+The script for your Metadata Provider defines specific metadata fields. The metadata definition script returns a table that describes the fields to be added to Lightroom Classic's metadata schema. It contains the following fields:
+metadataFieldsForPhotos
+table
+Required. Defines new data fields to be stored for each photo. 
+The table is an array of field definitions. Each entry in the metadataFieldsForPhotos array describes a single field which can be associated with photos in the catalog. Each field can hold only one value per photo.
+See ÒMetadata field entriesÓ on page 72.
+schemaVersion
+number
+Required. Allows for versioning of the property definition schema. Typically this number starts at 1 and you increment it whenever you release a new version of the schema or need to run the update function.
+updateFromEarlierSchemaVersion
+function
+Optional. Allows your plug-in to update data when a new schema version is in place. 
+The function takes three parameters; catalog, previousSchemaVersion, and progressScope. When the plug-in is first installed, previousSchemaVersion is nil.
+See example below.
+noAutoUpdate
+Boolean
+Optional. When false (the default), Lightroom Classic attempts to automatically update metadata from old field definitions to new. If you prefer to handle this in your own plug-in (using the updateFromEarlierSchemaVersion callback), set this to true.
+Metadata field entries 
+Each of the entries in the metadataFieldsForPhotos array is a table that describes one metadata field; each metadata field describes a photo in the catalog. Each field can have only one value per photo. The following entries are recognized within each table:
+id
+string
+Required. A unique identifier that allows a plug-in to access this field. The name must conform to the same naming conventions as Lua variables; that is, it must start with a letter, followed by letters or numbers, case is significant.
+version
+number
+Optional. If present, defines a version number specifically for this field, distinct from the version number defined by schemaVersion in the outer metadata definition script.
+If you make a change to a field definition that is incompatible with the previous definition (for example, changing the value of searchable), you must bump the field's version number. A migration script can search for photos that contain the old version of the field and manually migrate values. 
+title
+string
+Optional. If this field is displayed in the Metadata panel, this is the localizable display name. This name should be relatively short, since space in the 
+Metadata panel is at a premium. A name longer than about 100 pixels is likely to be truncated on display; however, the full text is shown in the tooltip when the cursor hovers over the name.
+If this item is omitted, the field does not appear in the Metadata panel. This can be useful for storing private, per-image plug-in information, such as the imageÕs ID at an on-line service that is the export destination, or other cross-reference information.
+dataType string Optional. If this field is present, Lightroom Classic disallows any other data type from being stored in this field. Nil is always permitted. You cannot require that a field have a value.
+The value is one of these strings:
+string Ñ The field value must have a string value.
+enum Ñ The field value must have one of the allowed values specified in the values entry. In the Metadata panel, allowed values are shown as a pop-up menu for the field. 
+url Ñ The field value must have a string value. In the Metadata panel, the text field is acccompanied by a button that treats the text value as a URL, opening it in the userÕs preferred web browser.
+values
+table
+Required when dataType = "enum", otherwise disallowed. An array of allowed values. Each entry in the array is a table that must contain a value and a title. The title is shown in the popup menu; the corresponding value (which must be a string, number, or Boolean, or nil) is written to the database. The values table can have only one entry where value = nil. If such an entry is present, the corresponding label is used when no value has been assigned to this property for a photo.
+The values table can also have an entry allowPluginToSetOtherValues = true. 
+¥ If present, your plug-in can store values outside of the enumerated values in this field. 
+¥ If not, an attempt to set such a value triggers a Lua error and does not change the value stored in the database.
+readOnly
+Boolean
+Optional. Use only when title is provided. When true, the field is visible in the Metadata panel, but not editable by the user. The value can still be set programmatically, using LrPhoto:setPropertyForPlugin(). 
+searchable
+Boolean
+Optional. Use only when title is provided. When true, this field is stored in a separate table and indexed for faster searching; this also means that the field can be chosen by a user as a search criterion for smart collections. Strings stored in this field must not exceed 511 bytes. Default is false.
+browsable
+Boolean
+Optional. Use only when title is provided and searchable is true. When true, this field can be used as a filter in the Library metadata browser.
+Custom metadata example
+This sample Metadata Provider script defines three metadata fields of representative types.
+return { metadataFieldsForPhotos = {
+{ id = 'siteId',
+-- This field is not available in the metadata browser because
+-- it does not have a title field. You might use a field like this -- to store a photo ID from an external database or web service.
+},
+{ id = 'randomString', title = LOC "$$$/Sample/Fields/RandomString=Random String", dataType = 'string', -- Specifies the data type for this field.
+},
+{ id = 'modelRelease',
+title = LOC "$$$/Sample/Fields/ModelRelease=Model Release", dataType = 'enum', values = {
+{ value = nil, title = LOC "$$$/Sample/Fields/ModelRelease/NotSure=Not Sure",
+},
+{ value = 'yes',
+title = LOC "$$$/Sample/Fields/ModelRelease/Yes=Yes",
+},
+{ value = 'no',
+title = LOC "$$$/Sample/Fields/ModelRelease/No=No",
+},
+    -- optional: allowPluginToSetOtherValues = true, },
+    }, },
+schemaVersion = 1,
+-- must be a number, preferably a positive integer
+updateFromEarlierSchemaVersion = function( catalog, previousSchemaVersion, 
+progressScope )
+-- When the plug-in is first installed, previousSchemaVersion is nil.
+-- As of Lightroom version 3.0, a progress-scope variable is available; you can  -- use it to signal progress for your upgrader function.
+-- Note: This function is called from within a  catalog:withPrivateWriteAccessDo -- block. You should not call any of the with___Do functions yourself.
+catalog:assertHasPrivateWriteAccess( 
+        "SampleMetadataDefinition.updateFromEarlierSchemaVersion" ) local myPluginId = 'com.adobe.lightroom.metadata.sample' if previousSchemaVersion == 1 then local photosToMigrate = catalog:findPhotosWithProperty( myPluginId,'siteId')
+-- optional: can add property version number here for i, photo in ipairs( photosToMigrate ) do local oldSiteId = photo:getPropertyForPlugin( myPluginId, 'siteId' ) 
+-- add property version here if used above local newSiteId = "new:" .. oldSiteId 
+-- replace this with whatever data transformation you need to do photo:setPropertyForPlugin( _PLUGIN, 'siteId', newSiteId )
+end
+    elseif previousSchemaVersion == 2 then            -- and so on...
+end
+    end, }
+This is how these fields appear in the Metadata panel, when the user has chosen a metadata tagset that contains them, or one of the default metadata tagsets ÒAllÓ or ÒAll Plug-in MetadataÓ (see ÒAdding custom metadata tagsetsÓ on page 75). The user-visible custom fields from plug-ins are shown after all of the built-in metadata fields. 
+
+Adding custom metadata tagsets
+
+¥ Notice that the field "siteId" does not appear in the panel because no title is defined for it; it is an invisible field, internal to the plug-in.
+¥ The field "randomString" appears with the localized title value, "Random String", as the display label. Because it is a plain string value, it appears as an editable text field.
+¥ The field "modelRelease" also appears with the title value, "Model Release", as the display label. Because it is an enumerated value, clicking it pops up a menu of the allowed values, each shown using its own localized title value as the display string.
+Adding custom metadata tagsets
+The drop-down menu at the top left of the Metadata panel allows users to filter what is shown in the panel, by selecting a metadata tagset to be displayed. A metadata tagset is a predefined set of metadata fields. When you select a tagset, the Metadata panel displays only the fields included in that set.
+
+There are predefined tagsets, and you can also create your own. Your plug-in can define a named metadata tagset, which can include fields defined by your plug-in, by other plug-ins, or by Lightroom Classic.
+This is the Info.lua file for a minimal plug-in that defines a tagset:
+return {
+LrSdkVersion = 5.0,
+LrToolkitIdentifier = 'com.adobe.lightroom.metadata.sample',
+    LrPluginName = LOC "$$$/CustomMetadata/PluginName=Metadata Sample", LrMetadataTagsetFactory = 'SampleTagset.lua', }
+Adding custom metadata tagsets
+The metadata-tagset provider can appear in the same plug-in with export-service and export-filter providers, and with simple Metadata Providers.
+The metadata-tagset provider is a Lua file that returns a tagset definition. You can use the 
+LrMetadataTagsetFactory entry to specify more than one such file in a single plug-in. For example:
+LrMetadataTagsetFactory = { 'Tagset1.lua', 'Tagset2.lua', 'Tagset3.lua' },
+Defining a metadata tagset
+Each tagset definition file must return a table listing the fields that should appear in the Metadata panel when that tagset is selected. The file can return an array of such tables to define multiple tagsets.
+The table contains these entries:
+id
+string
+Required. An identifier for this tagset that is unique within this plug-in. The name must conform to the same naming conventions as Lua variables; that is, it must start with a letter, followed by letters or numbers. Case is significant.
+title
+string
+Required. The localizable display name of the tagset, which appears in the popup menu for the Metadata panel.
+items
+table
+Required. An array of metadata fields that appear in this tagset, in order of appearance.
+Each entry in the items array identifies a field to be included in the Metadata menu. It can be a simple string specifying the field name, or an array that specifies the field name and additional information about that field:
+fieldname
+string
+The first element in the array is the unique identifying name of the field, or one of the special values described below.
+label
+string
+Optional. When the field name is the special value 'com.adobe.label', this is the localizable string to use as the section label. 
+Certain special values are defined for field names. See the Lightroom Classic SDK API Reference for metadata plug-in-defined functions, and the metadata sample plug-in.
+¥ You can include all visible metadata from a plug-in by specifying the field name with the wild-card character "*"; for example, "com.mycompany.uploader.*". The visible fields are included in the sequence in which they are defined in the definition script. The fields for each plug-in are preceded by a dividing line and the plug-inÕs name. 
+If you refer to a plug-in that is missing or that defines no visible metadata, it is not an error; the block and separator for that plug-in are simply not displayed.
+¥ You can include all visible metadata from a plug-in by specifying the special field name 
+"com.adobe.allPluginMetadata". This is the field name used by the built-in "All Plug-in Metadata" preset.
+¥ The special name 'com.adobe.separator' inserts a dividing line in the Metadata panel before the first field from this plug-in.
+¥ The special name 'com.adobe.label' inserts a section label in the Metadata panel, specified by a label entry in an array with this name. A label is typically used below a separator.
+Custom metadata tagset example
+This sample metadata-tagset provider script defines a set of metadata fields.
+return { title = LOC "$$$/SampleTagset/Title=Sample Tagset from Plug-in", id = 'sampleTagset',
+items = {
+'com.adobe.filename',
+'com.adobe.copyname', 'com.adobe.folder',
+'com.adobe.separator',
+'com.adobe.title',
+ { 'com.adobe.caption', height_in_lines = 3 },
+'com.adobe.separator',
+{ 'com.adobe.label', label = LOC "$$$/Metadata/SampleLabel=Section Label" },
+'com.adobe.dateCreated',
+'com.adobe.location',
+'com.adobe.city',
+'com.adobe.state',
+'com.adobe.country',
+'com.adobe.isoCountryCode',
+'com.adobe.GPS',
+'com.adobe.GPSAltitude',
+ 'com.adobe.lightroom.metadata.sample.randomString',
+'com.adobe.altTextAccessibility',
+'com.adobe.extDescrAccessibility',
+},
+}st
+Searching for photos by metadata values
+The LrCatalog object provides a function, findPhotos(), that allows you to search through the catalog for photos with particular metadata values. You pass this function a search descriptor to define the search, which is a table containing a metadata field (the search criteria), a matching operation (which depends on the datatype of the field), and a value to match against.
+This function must be used within a background task. For example: import "LrTasks".startAsyncTask( function() local catalog = import "LrApplication".activeCatalog()
+local photos = catalog:findPhotos { searchDesc = { criteria = "rating",
+
+operation = ">", value = 3,
+    }, }
+for _, photo in ipairs( photos ) do
+        -- do somethingwith path end end )
+This simple usage is straightforward, although the function allows many matching operations, depending on the datatype of the metadata field to be considered. 
+criteria	The allowed values for criteria correspond to choices in the Edit Smart Collection dialog:
+rating
+(number)
+pick
+(enum) Value must be one of: 1 (flagged), 0 (unflagged), -1 (rejected)
+labelColor
+(enum) Value must be one of: 1 (red), 2 (yellow), 3 (green), 4 (blue), 5 (purple), 
+"custom" (any label not currently assigned to a color), "none"
+labelText
+(string, can be empty) User-assigned name of color label
+folder
+(string) Name of folder, including all parent folders shown in the Folders panel
+collection
+(string) Name of any collection containing this photo
+all
+(string) Any searchable text
+filename
+(string)
+copyname
+(string, can be empty) Copy Name assigned in Metadata panel
+fileFormat
+(enum) Value must be one of: "DNG", "RAW", "JPG", "TIFF", "PSD"
+metadata
+(string) Any searchable metadata
+title
+(string, can be empty)
+caption
+(string, can be empty)
+keywords
+(string, plural, can be empty)
+iptc
+(string) Any IPTC metadata; that is, any text in a field that is indexed by Lightroom Classic.
+exif
+(string) Any EXIF metadata; that is, any text in a field that is indexed by Lightroom Classic.
+captureTime
+(date)
+touchTime
+(date) Edit Date
+camera
+(string, with exact match)
+cameraSN
+(string, with exact match) Camera Serial Number
+	lens	(string, with exact match)
+isoSpeedRating
+(number)
+hasGPSData
+(Boolean)
+country
+(string, with exact match)
+state
+(string, with exact match)
+city
+(string, with exact match)
+location
+(string, with exact match)
+creator
+(string, with exact match)
+jobIdentifier
+(string, with exact match)
+copyrightState
+(enum) Value must be one of: true (Boolean, copyrighted), false (Boolean, public domain), "unknown"
+hasAdjustments
+(Boolean)
+developPreset
+(enum) Value must be one of: "default", "specified", "custom"
+treatment
+(enum) Value must be one of: "grayscale", "color"
+cropped
+(Boolean)
+aspectRatio
+(enum) Value must be one of: "portrait", "landscape", "square" 
+You can search plug-in defined fields, using these special criteria values:
+"allPluginMetadata"
+Any searchable plug-in-defined metadata.
+sdktext:plugin_id.field_name
+A specific, searchable, plug-in-defined field (with datatype text or enum).
+sdktext:plugin_id.*
+All searchable fields defined by a specific plug-in (with datatype text or enum).
+operation	The allowed values for operation depend on value type of the criteria field, and also correspond to selectable values the Edit Smart Collections dialog. 
+¥ For string values, one of:
+ 
+ any
+"contains" 
+ all
+"contains all"
+ words
+"contains words"
+ noneOf
+"does not contain" 
+ beginsWith
+"starts with"
+ endsWith
+"ends with"
+	 empty	"are empty", only valid for items that can be empty,
+ notEmpty
+"are not empty", only valid for items that can be empty,
+ ==
+"is", only valid for items that can have an exact match,
+ !=
+"is not", only valid for items that can have an exact match
+¥ For Boolean values, one of "isTrue", "isFalse" ¥	For enumerated values, one of == (is), != (is not)
+¥ For number and rating values, one of:
+==
+"is"
+!=
+"is not"
+>
+is greater than"
+<
+"is less than"
+>=
+"is greater than or equal to"
+<=
+"is less than or equal to"
+in
+"is in range" 
+End value of range specified in value2 parameter.
+¥ For date values, one of:
+==
+"is"
+!=
+"is not"
+>
+"is after"
+<
+"is before"
+inLast notInLast
+"is in the last"
+"is not in the last"
+With unit specified in value_unit parameter, one of:
+hours days weeks months years
+in
+"is in the range" 
+End value of range specified in value2 parameter.
+today
+"is today"
+yesterday
+"is yesterday"
+	thisWeek	"is in this week"
+thisMonth
+"is in this month"
+thisYear
+"is in this year"
+value	The value to match against must be of the type indicated for the criteria. Additional parameters value2 and value_unit are used with specific types and operations, as mentioned above.
+Combining search criteria
+You can create a more complex search descriptor by using a combine entry to specify how to combine the results of several criterion tables:
+import "LrTasks".startAsyncTask( function() local catalog = import "LrApplication".activeCatalog()
+local photos = catalog:findPhotos { searchDesc = { combine = "intersect",
+{ criteria = "rating", operation = ">", value = 3,
+},
+{ criteria = "captureDate", operation = ">", value = "2007-01-01",
+}
+    }, }
+for _, photo in ipairs( photos ) do
+        -- do something with path end end )
+There are three ways to combine criteria:
+combine = "union"
+Any of the criteria match.
+combine = "intersect"
+All of the criteria match.
+combine = "exclude"
+None of the criteria match.
+A combine entry is followed by an array of elements to be combined. This array can contain nested combine entries, so the search can become quite complex. For example:
+{         combine = "union",
+        {
+                combine = "intersect",
+                {
+                        criteria = "rating",                         operation = ">=",                         value = 1,
+                },                 {
+                        criteria = "labelColor",                         operation = "==",                         value = 1,
+                },
+        },         {
+                criteria = "rating",                 operation = "==",                 value = 5,
+        },
+}
+This renders the following statement of Boolean logic: photos where ( rating >= 1 AND labelColor == 1 ) OR ( rating == 5 )
+Creating searches interactively
+If you are unsure how to construct a particular search, you can make Lightroom Classic build it for you. To do this:
+1. Construct the search as a Smart Collection in Lightroom Classic:
+
+2. Right click the resulting collection in the Collections panel and choose ÒExport Smart Collection Settings.Ó 
+
+3. Open the resulting .lrsmcol file in a text editor.
+4. Select and copy the value entry:
+
+5. Edit the resulting code to change value to searchDesc, and include it in your call to findPhotos().
+6. Make any other appropriate changes in the code. In this example, for instance, you would not need the combine element. If you remove it, you can also promote the parameter table to the top level in searchDesc:
+searchDesc = { criteria = "captureTime", operation = ">", value = "2008-02-12",
+}

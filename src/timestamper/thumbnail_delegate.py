@@ -27,12 +27,9 @@ class ThumbnailDelegate(QStyledItemDelegate):
             font.setPointSize(font.pointSize() * 2)
             painter.setFont(font)
             
-            # Set the color (e.g., green)
-            painter.setPen(QColor("green"))
-            
-            # Position the checkmark over the thumbnail
+            # Position the checkmark on the left side of the thumbnail
             # This might need adjustment depending on the icon size and view mode
             rect = option.rect
-            painter.drawText(rect, Qt.AlignCenter, DONE_ICON)
+            painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, DONE_ICON)
             
             painter.restore()

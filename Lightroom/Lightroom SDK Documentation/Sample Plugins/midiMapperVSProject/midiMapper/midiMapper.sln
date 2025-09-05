@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "midiMapper2", "midiMapper2.vcxproj", "{199CB584-5ABD-4714-B356-C7EC913BD433}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{199CB584-5ABD-4714-B356-C7EC913BD433}.Debug|Win32.ActiveCfg = Debug|Win32
+		{199CB584-5ABD-4714-B356-C7EC913BD433}.Debug|Win32.Build.0 = Debug|Win32
+		{199CB584-5ABD-4714-B356-C7EC913BD433}.Release|Win32.ActiveCfg = Release|Win32
+		{199CB584-5ABD-4714-B356-C7EC913BD433}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

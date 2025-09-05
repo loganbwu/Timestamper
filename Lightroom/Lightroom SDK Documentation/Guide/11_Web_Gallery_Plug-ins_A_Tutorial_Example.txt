@@ -1,0 +1,488 @@
+11 Web Gallery Plug-ins: A Tutorial Example
+This chapter provides a walkthrough example of how to build a Web Gallery plug-in, which uses a slightly different architecture from standard export and metadata plug-ins. 
+This sample code produces a simple HTML gallery that shows a grid of thumbnail images, which respond to a click by showing a larger version of the clicked image.
+These concepts are introduced and explained in detail in Chapter 6, ÒWriting a Web-engine Plug-in.Ó
+Creating a Web Gallery plug-in
+To begin creating the plug-in, we will create initial versions of the required files, then add code to them as we go on.
+1. Create a single folder, mySamplePlugin.lrwebengine, to hold the plug-in files, in the following folder according to your operating system:
+¥ In macOS: 
+userhome/Library/Application Support/Adobe/Lightroom/ Web Galleries/mySamplePlugin.lrwebengine
+¥ In Windows:
+LightroomRoot\shared\webengines\mySamplePlugin.lrwebengine 
+Add descriptive files
+1. In the myWebPlugin folder, create the information file that describes the plug-in, naming the file galleryInfo.lrweb. 
+Add this initial Lua code to the file:
+return {
+LRSDKVersion = 5.0,
+LrSdkMinimumVersion = 2.0, -- minimum SDK version required by this plug-in
+title = "My Sample Plug-in", id = "com.adobe.wpg.templates.mysample", galleryType = "lua", maximumGallerySize = 50000,
+}
+2. In the myWebPlugin folder, create the manifest file that defines the contents of the plug-in, naming it manifest.lrweb. Include the first command, which specifies a template for a gallery page:
+	1.	AddGridPages {
+    template = "grid.html", rows = 4, columns = 4, }
+     199
+Creating a Web Gallery plug-in
+Add HTML template files
+1. The manifest references an HTML file to be used as a template, grid.html. Create this file in the myWebPlugin folder, putting in these initial references:
+<%@ include file="header.html" %>
+<%@ include file="footer.html" %>
+2. The two referenced HTML files contain common code for all HTML pages that will be created from this template. Create these two HTML files in the myWebPlugin folder.
+	¥	The content of header.html initializes the HTML code:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Adobe Photoshop Lightroom" />
+<title>My Sample Plug-in</title>
+<link rel="stylesheet" type="text/css" media="screen" title="Custom Settings" href="$others/custom.css" >
+</head>
+<body>
+	¥	The content of footer.html simply closes off the HTML code:
+</body>
+</html>
+Add subfolders
+The plug-in folder now contains most of the top-level files for the plug-in:
+myWebPlugin/ galleryInfo.lrweb manifest.lrweb
+grid.html header.html footer.html
+The grid.html page is the template for the thumbnail filmstrip; later we will add a template HTML file for the large version of the selected thumbnail image.
+In addition to these top-level files, the plug-in will require resources of various kinds; default images, style sheets, JavaScript support code, and string dictionaries for localization.
+	1.	Before going on to flesh out the content of the basic files, add some subfolders to hold resource files:
+myWebPlugin/ resources/ css/ js/
+strings/ en/
+Defining a data model and functionality
+The information file defines the data model that your LuaPage code will use to store the information it needs to generate appropriate HTML. In this case, there will be two image sizes on the gallery pages, a small and a large version of each photo, so the model needs to define that basic parameters for each image size.
+	1.	Add a model entry to the table returned by the galleryInfo.lrweb file:
+return {
+LRSDKVersion = 5.0,
+LrSdkMinimumVersion = 2.0, -- minimum SDK version required by this plug-in
+title = "My Sample Plug-in",
+id = "com.adobe.wpg.templates.mysample", galleryType = "lua", maximumGallerySize = 50000,
+model = {
+["nonDynamic.imageBase"] = "content", 
+["photoSizes.thumb.height"] = 150,
+["photoSizes.thumb.width"] = 150,
+["photoSizes.thumb.metadataExportMode"] = "copyright",
+        ["appearance.thumb.cssID"] = ".thumb", }, }
+This begins to define the parameters for the smallest photo size, naming it ÒthumbÓ. The variables define the images size, allowing us to adjust the number of rows and columns the grid will need to display them.
+2. The model.appearance parameter associates the ÒthumbÓ photos with a style-sheet variable. To make this work, we have to add the style sheet to the project.
+In the manifest.lrweb file, add this code at the top:
+AddCustomCSS { filename = 'content/custom.css', }
+3. Now we will add some code to the HTML template that makes use of these variables to display thumbnail images in the workspace.
+In the grid.html file, add this code before the header statement, defining local variables:
+<%
+--[[ Define some variables to make locating other resources easier. ]] local mySize = "thumb"
+    	local others = "content"      local theRoot = "."
+%>
+
+Add a grid using built-in tags
+The part of the HTML template that defines the grid itself, and the contents of each cell, makes use of the predefined grid tags contained in the Lightroom Classic built-in tagset. First, we need to import this tagset into the ÒlrÓ namespace. 
+4. In the manifest.lrweb file, add this code at the top:
+importTags( "lr", "com.adobe.lightroom.default" ) 
+AddCustomCSS { filename = 'content/custom.css',
+}
+5. Now we can define the contents of image grid and its contents.
+Add this code to grid.html between the header and footer include statements:
+<lr:ThumbnailGrid>
+<lr:GridPhotoCell>
+     <img src="$others/bin/images/thumb/<%= image.exportFilename %>.jpg" id="<%= image.imageID %>" class="thumb" />
+	   	 </lr:GridPhotoCell>
+</lr:ThumbnailGrid>
+The logic here retrieves the thumbnail version of an image from the content folder ($others), and makes it the content of a grid cell. The image name is variable, so each cell shows a different image.
+This data model and template define a page that displays thumbnail versions of your images in the Web Gallery workspace. Next, we will need to allow for more than one page of photos, and add functionality so that clicking on a thumbnail shows the larger version of the image.
+Add pagination using built-in tags
+We will use more of the predefined tags to add page-navigation buttons, allowing the example to accommodate more than 16 images. 
+	6.	In the grid.html page, add this code after the closing ThumbnailGrid tag:
+...
+</lr:ThumbnailGrid>
+<% if numGridPages > 1 then %>
+<div class="pagination">
+<ul>
+<lr:Pagination>
+<lr:CurrentPage>
+<li>$page</li>
+</lr:CurrentPage>
+<lr:OtherPages>
+<li><a href="$link">$page</a></li>
+</lr:OtherPages>
+<lr:PreviousEnabled>
+<li><a href="$link">Previous</a></li>
+</lr:PreviousEnabled>
+<lr:PreviousDisabled> <li>Previous</li>
+</lr:PreviousDisabled>
+<lr:NextEnabled>
+	 	<li><a href="$link">Next</a></li>
+</lr:NextEnabled>
+<lr:NextDisabled>
+	  	<li>Next</li>
+</lr:NextDisabled>
+</lr:Pagination>
+</ul>
+</div>
+<% end %>
+The pages make use of the predefined navigation buttons (using the $link variable), associating them with the text ÒPreviousÓ and ÒNextÓ. This code makes sure that the ÒPreviousÓ button is disabled on the first page, and the ÒNextÓ button is disabled on the last page. 
+Each page also displays its own page number (using the $page variable), and allows direct navigation to other pages (using the $link and $page variables)
+Add another photo size
+When you click on a thumbnail image in the filmstrip, we want to display a large version of that image in another frame of the page. In order to make this happen, we need to do several things:
+¥ Define a ÒlargeÓ photo size in the data model.
+¥ Create an HTML template for the large-image display frame.
+¥ Add a link around each thumbnail image that responds to a click by finding and displaying the corresponding large image. 
+Add the ÒlargeÓ photo size
+1. The data model needs to define the new photo size and its supporting parameters. 
+In the galleryInfo.lrweb file, add these items to the model table:
+model = { ...
+["photoSizes.thumb.metadataExportMode"] = "copyright",
+["photoSizes.large.width"] = 450,
+["photoSizes.large.height"] = 450,
+    ["appearance.thumb.cssID"] = ".thumb", },
+2. The project needs to include a template for the frame that displays the large image. 
+In the manifest.lrweb file, add this command:
+AddPhotoPages { template = 'large.html', variant = '_large', destination = "content",
+}
+This will create an individual HTML page for each large image, which we can link to from the grid photo cell definition in grid.html. The name of each page has the text "_large" appended to it; for example, img0731_large.html.
+Add link functionality
+3. In the grid.html template, add a link in each photo cell of the grid that retrieves the large-version page corresponding to the thumbnail in that cell:
+<lr:GridPhotoCell>
+  <a href="$others/<%= image.exportFilename %>_large.html">
+    <img src="$others/bin/images/thumb/<%= image.exportFilename %>.jpg" id="<%= image.imageID %>" class="thumb" />   </a>
+</lr:GridPhotoCell>
+Notice that the reference to the filename includes the appended text, "_large".
+Define the large-image frame template
+4.	Create the new HTML template page, large.html, in the top-level plug-in folder. The new page is similar to the grid.html page, except that it declares the use of large images, rather than thumbnails, and there is an image function that retrieves the single image to be shown.
+Use the common header and footer code, and define local variables:
+<%
+--[[ Define some variables to make locating other resources easier.]] local image = getImage( index ) local theRoot = ".." local others = "." local mySize = "large"
+%>
+<% --[[ Include the page header]] %> <%@ include file="header.html" %>
+<% --[[ ...add pagination logic...]] %>
+<% --[[ ...add image-display link...]] %>
+<% --[[ Include the page footer]] %>
+<%@ include file="footer.html" %>
+5.	Add this pagination code after the include-header section. This version includes an Index option which takes the site back to the grid page:
+<div>
+    <ul>
+      <lr:Pagination>
+        <lr:PreviousEnabled>
+          <li><a href="$link">Previous</a></li>
+        </lr:PreviousEnabled>
+        <lr:PreviousDisabled>
+          <li>Previous</li>
+        </lr:PreviousDisabled>
+        <li><a href="$gridPageLink">Index</a></li>
+        <lr:NextEnabled>
+          <li><a href="$link">Next</a></li>
+        </lr:NextEnabled>
+        <lr:NextDisabled>
+          <li>Next</li>
+
+Customizing the Web Gallery UI
+        </lr:NextDisabled>
+      </lr:Pagination>
+    </ul> </div>
+	6.	After the pagination code, add the link that actually retrieves the large image to be shown:
+<a href="$gridPageLink">
+  <img src="bin/images/large/<%= image.exportFilename %>.jpg" /> </a>
+Customizing the Web Gallery UI
+The next step is to customize the control panel of the Web Gallery page so that users can adjust values in the model data that we have defined, and allow changes that the user makes to be shown immediately in the Web Gallery browser using Live Update.
+To demonstrate these techniques, we will add an entry to the Site Info section of the panel that will allow users to modify the main title of the page, shown in the main frame. We will allow the user to edit the title string using a text-edit control in the Site Info section of the main control panel, or using in-place edit in the preview panel.
+Add a binding to a control
+1. Add a variable to the data model to hold the title text. In the galleryInfo.lrweb file, add these lines to the model entry:
+["metadata.siteTitle.value"] = "MySample",
+["appearance.siteTitle.cssID"] = "#siteTitle",
+The second value associates the title with a style-sheet ID.
+2. Add a views entry to the table returned by the galleryInfo.lrweb file:
+views = function( controller, f ) local LrView = import "LrView" local bind = LrView.bind local multibind = f.multibind return { labels = f:panel_content { bind_to_object = controller, f:subdivided_sections { f:labeled_text_input { title = "MySample",
+    value = bind "metadata.siteTitle.value", },
+},
+},
+    } end,
+The Site Info section of the control panel on the Web Gallery page corresponds to the labels return value of the views function. We are creating a labeled_text_input control in this section, and binding its value to the data-model value that holds the site-title text.
+Add the title to the HTML template
+The title will be shown on all pages, so it should be part of the boilerplate HTML used at the front of all pages, as defined by the header.html template file.
+3. Edit the header.html template file, adding the following heading immediately following the <body> tag:
+<h1 onclick="clickTarget( this, 'metadata.siteTitle.value' );" id="metadata.siteTitle.value">$model.metadata.siteTitle.value</h1>
+Notice that the title text is found in the model variable, the same one bound to the text-input control in the control panel. An event handler here allows edit-in-place in the browser window of the Web Gallery page, in addition to the editing capability provided by UI control.
+4. To make edit-in-place work, we need a JavaScript script to handle Live Update. Add the next statement immediately following, identifying a script to be executed 
+<script type="text/javascript" src="$theRoot/resources/live_update.js"></script>
+5. We need to make this script part of the plug-in. To do this, we need to both provide the script, and tell the plug-in itÕs there.
+¥ In the manifest.lrweb page, add this command:
+AddResources{ source="resources", destination="resources",
+}
+¥ Create a copy of the file live_update.js, which is part of the Lightroom Classic SDK, and place it in the resources subfolder of the plug-in. This is a sample implementation of the update functions and callbacks needed for Live Update.
+Testing the plug-in
+1. Save all of your changes and restart Lightroom Classic.
+2. Select some photos.
+3. Go to the Web Gallery page and select the new gallery type.
+4. Place the cursor over the ÒMySampleÓ text that appears as the default title; you should be able to edit it.
+5. Look in the Site Info section of the control panel, and try editing the title text from there.
+Adding a customized tagset
+A tagset for a web gallery is an external file containing macro-like definitions that can be loaded by your web pages; see ÒWeb SDK tagsetsÓ on page 138. We will create a tagset for this gallery that allows us to build up a complex string. Our tags will build up a complex string by combining random members of a list of predefined elements with some set text and with the content of the tag when it is included in a page. 
+Define the tags
+1. Create a file in the plug-in folder named myExampleTags.lrweb, and edit it to define this list of sayings:
+local sayings = {
+"A dish fit for the gods - Julius Caesar, Shakespeare",
+"Oh, that way madness lies - King Lear, Shakespeare",
+"A multitude of sins - James 5:20",
+"A knight in shining armour - The Ancient Ballad of Prince Baldwin",
+    "Blood is thicker than water - Guy Mannering; or the astrologer, Sir Walter Scott"
+}
+2. Add a local counter variable to keep track of which member is chosen: local randomSayingCount = 0
+3. Define a function that selects one of the sayings. Make it a global variable that can be referenced from LuaPage templates:
+globals = { randomSaying = function () randomSayingCount = math.mod( randomSayingCount + 1, #sayings ) return sayings[ randomSayingCount ]
+end,
+}
+4. Add the tag definitions:
+tags = { saying = { startTag = "write( 'Here is a saying: ' ) write( randomSaying() )", endTag = "write( [[And that's all.]] ) ",
+},
+aQuote = { startTag = 'write( [[<blockquote style="  margin: 0 0 0 30px; padding: 10px 0 0 20px; font-size: 88%; line-height: 1.5em; color: #666;">]] )',
+    endTag = 'write( [[</blockquote>]] )', }
+}
+This defines two dynamic tags with the names saying and aQuote. The tags can be referenced from a LuaPage template using the prefix with which the tagset is imported, and the tag name in an opening and closing tag:
+<prefix:tagname>...</prefix:tagname>
+The inner tag uses the global function we defined to construct some strings containing both static and dynamic text. These strings are output before and after the text content of the tag. The outer tag provides some style information for the text.
+Add the tagset to the gallery
+5. Edit the manifest.lrweb file to include the tags defined in the new tagset definition file. Add this line:
+importTags( "xmpl", "myExampleTags.lrweb" )
+This associates the prefix ÒxmplÓ with the imported tagset, the tags can be referenced as:
+<xmpl:aQuote>
+<xmpl:saying>...</xmpl:saying>
+</xmpl:aQuote>
+6. Finally, we need to use the tags in one of the template pages. Edit the file large.html to add this code just before the footer:
+<xmpl:aQuote>You know what they say:<br>
+    <xmpl:saying> <br />....how interesting!<br /></xmpl:saying> </xmpl:aQuote>
+7. Save the plug-in and reload it, as described in ÒTesting the plug-inÓ on page 206. 
+At the bottom of the browser, you should now see the constructed text at the bottom, which changes each time the page is displayed:
+
+
+
+Contents	     3
+
+
+
+Preface	     7
+
+Preface	     7
+
+Preface	     7
+
+CHAPTER 1: Using the Lightroom Classic SDK	The Lightroom Classic SDK scripting environment     12
+
+CHAPTER 1: Using the Lightroom Classic SDK	The Lightroom Classic SDK scripting environment     12
+
+
+
+CHAPTER 2: Writing a Lightroom Classic Plug-in	Writing standard plug-ins for Lightroom Classic     24
+
+CHAPTER 2: Writing a Lightroom Classic Plug-in	Writing standard plug-ins for Lightroom Classic     24
+
+
+
+CHAPTER 2: Writing a Lightroom Classic Plug-in	     32
+
+CHAPTER 2: Writing a Lightroom Classic Plug-in	     32
+
+CHAPTER 2: Writing a Lightroom Classic Plug-in	     32
+
+CHAPTER 3: Creating Export and Publish Services	Defining an export service     38
+
+CHAPTER 3: Creating Export and Publish Services	Defining an export service     38
+
+
+
+CHAPTER 3: Creating Export and Publish Services	Adding an export post-process action     42
+
+CHAPTER 3: Creating Export and Publish Services	     40
+
+CHAPTER 3: Creating Export and Publish Services	     40
+
+CHAPTER 3: Creating Export and Publish Services	Adding an export post-process action     42
+
+CHAPTER 3: Creating Export and Publish Services	Adding an export post-process action     42
+
+CHAPTER 3: Creating Export and Publish Services	Adding an export post-process action     42
+
+CHAPTER 3: Creating Export and Publish Services	Customizing the Export and Publishing Manager dialogs     54
+
+CHAPTER 3: Creating Export and Publish Services	Customizing the Export and Publishing Manager dialogs     54
+
+CHAPTER 3: Creating Export and Publish Services	     40
+
+CHAPTER 3: Creating Export and Publish Services	Lightroom Classic built-in property keys     60
+
+CHAPTER 3: Creating Export and Publish Services	     40
+
+CHAPTER 3: Creating Export and Publish Services	     40
+
+CHAPTER 3: Creating Export and Publish Services	Lightroom Classic built-in property keys     60
+
+CHAPTER 3: Creating Export and Publish Services	Lightroom Classic built-in property keys     60
+
+CHAPTER 3: Creating Export and Publish Services	Lightroom Classic built-in property keys     60
+
+CHAPTER 4: Working with Metadata	Adding custom metadata     72
+
+CHAPTER 4: Working with Metadata	Adding custom metadata     72
+
+
+
+CHAPTER 4: Working with Metadata	     75
+
+CHAPTER 4: Working with Metadata	Searching for photos by metadata values     77
+
+CHAPTER 4: Working with Metadata	     75
+
+CHAPTER 4: Working with Metadata	Searching for photos by metadata values     77
+
+CHAPTER 4: Working with Metadata	Searching for photos by metadata values     77
+
+CHAPTER 4: Working with Metadata	Searching for photos by metadata values     77
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	     86
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	     86
+
+
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	User interface elements     87
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	User interface elements     87
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	User interface elements     87
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Binding UI values to data values     96
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Binding UI values to data values     96
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Binding UI values to data values     96
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Binding UI values to data values     100
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Binding UI values to data values     100
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Binding UI values to data values     100
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Determining layout     109
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Determining layout     109
+
+CHAPTER 5: Creating a User Interface for Your Plug-in	Determining layout     109
+
+CHAPTER 6: Writing a Web-engine Plug-in	Defining the data model     118
+
+CHAPTER 6: Writing a Web-engine Plug-in	Defining the data model     118
+
+
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK manifest API     129
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK manifest API     129
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK manifest API     129
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK tagsets     138
+
+CHAPTER 6: Writing a Web-engine Plug-in	     136
+
+CHAPTER 6: Writing a Web-engine Plug-in	     136
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK tagsets     138
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK tagsets     138
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web SDK tagsets     138
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web HTML Live Update     142
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web HTML Live Update     142
+
+CHAPTER 6: Writing a Web-engine Plug-in	Web HTML Live Update     142
+
+CHAPTER 7: Using ZStrings for Localization	     150
+
+CHAPTER 7: Using ZStrings for Localization	     150
+
+
+
+CHAPTER 8: SDK Sample Plug-ins	The FTP Upload sample plug-in     154
+
+CHAPTER 8: SDK Sample Plug-ins	The FTP Upload sample plug-in     154
+
+
+
+CHAPTER 8: SDK Sample Plug-ins	The Flickr plug-in     158
+
+CHAPTER 8: SDK Sample Plug-ins	The Flickr plug-in     158
+
+CHAPTER 8: SDK Sample Plug-ins	The Flickr plug-in     158
+
+CHAPTER 8: SDK Sample Plug-ins	Metadata and filtering samples     165
+
+CHAPTER 8: SDK Sample Plug-ins	Metadata and filtering samples     165
+
+CHAPTER 8: SDK Sample Plug-ins	Metadata and filtering samples     165
+
+CHAPTER 8: SDK Sample Plug-ins	     168
+
+CHAPTER 8: SDK Sample Plug-ins	     168
+
+CHAPTER 8: SDK Sample Plug-ins	     168
+
+CHAPTER 9: Getting Started: A Tutorial Example	Displaying a custom dialog     174
+
+CHAPTER 9: Getting Started: A Tutorial Example	     173
+
+
+
+CHAPTER 9: Getting Started: A Tutorial Example	Displaying a custom dialog     174
+
+CHAPTER 9: Getting Started: A Tutorial Example	     173
+
+CHAPTER 9: Getting Started: A Tutorial Example	Displaying a custom dialog     174
+
+CHAPTER 9: Getting Started: A Tutorial Example	Binding to multiple keys     180
+
+CHAPTER 9: Getting Started: A Tutorial Example	Binding to multiple keys     180
+
+CHAPTER 9: Getting Started: A Tutorial Example	     173
+
+CHAPTER 9: Getting Started: A Tutorial Example	Adding a data observer     184
+
+CHAPTER 9: Getting Started: A Tutorial Example	Adding a data observer     184
+
+CHAPTER 9: Getting Started: A Tutorial Example	Adding a data observer     184
+
+CHAPTER 9: Getting Started: A Tutorial Example	Debugging your plug-in     187
+
+CHAPTER 9: Getting Started: A Tutorial Example	Debugging your plug-in     187
+
+CHAPTER 9: Getting Started: A Tutorial Example	Debugging your plug-in     187
+
+CHAPTER 10: Defining Metadata: A Walkthrough	     192
+
+CHAPTER 10: Defining Metadata: A Walkthrough	     192
+
+
+
+CHAPTER 10: Defining Metadata: A Walkthrough	Customizing the Plug-in Manager     196
+
+CHAPTER 10: Defining Metadata: A Walkthrough	Customizing the Plug-in Manager     196
+
+CHAPTER 10: Defining Metadata: A Walkthrough	Customizing the Plug-in Manager     196
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	     200
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	Defining a data model and functionality     201
+
+
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	Defining a data model and functionality     201
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	Defining a data model and functionality     201
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	Defining a data model and functionality     201
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	Adding a customized tagset     206
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	Adding a customized tagset     206
+
+CHAPTER 11: Web Gallery Plug-ins: A Tutorial Example	     200

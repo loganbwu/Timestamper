@@ -1,0 +1,327 @@
+1	Using the Lightroom Classic SDK 
+This chapter provides an introduction to the Lightroom Classic SDK:
+¥ ÒWriting plug-ins for Lightroom ClassicÓ on page 10 describes the basics of how Lua plug-ins work, including details of the information file and file-system locations.
+¥ ÒThe Lightroom Classic SDK scripting environmentÓ on page 11 explains the concepts and terminology of the Lightroom Classic SDK scripting environment, and provides details of what tools are available to you within the SDK scripting environment.
+Writing plug-ins for Lightroom Classic
+The Lightroom Classic SDK allows you to customize and extend certain Lightroom Classic features by creating plug-ins. For an overview of the plug-in architecture, see Chapter 2, ÒWriting a Lightroom Classic Plug-in.Ó
+In general, a plug-in consists of Lua-language files (scripts) that define the plug-in functionality, and an information or manifest file that describes the contents of the plug-in. The information file must have a specific name, and be placed in a folder with the Lua source files and resource files; the folders may need to be in specific locations. The type of plug-in is determined by the folder and file placement, and by file naming conventions.
+In the current release these features are extensible:
+¥ Menu customization: Plug-ins can add new menu items in the Plug-in Extras menu; see Chapter 2, ÒWriting a Lightroom Classic Plug-in."
+¥ Export and publish functionality: You can create an export plug-in, which customizes the behavior of Lightroom Classic's Export and Publishing Manager dialogs and export processing. You can add or remove items from the dialog, alter or augment the rendering process, and send images to locations other than files on the local computer. See Chapter 3, ÒCreating Export and Publish Services."
+¥ Metadata: You can define customized public or private metadata fields for Lightroom Classic. Public or private metadata can be associated with individual photos. You can also define new ways of arranging the display of metadata within the Library moduleÕs Metadata panel. See Chapter 4, ÒWorking with Metadata."
+¥ Web engine functionality: You can create an HTML web-engine plug-in, which defines a new type of HTML photo gallery. The engines you define appear in the Gallery panel at the upper right of the Web module. See Chapter 6, ÒWriting a Web-engine Plug-in.Ó
+The Lightroom Classic SDK provides an API with which to define a user interface for your plug-in; see Chapter 5, ÒCreating a User Interface for Your Plug-in."
+     10
+The Lightroom Classic SDK scripting environment
+The SDK defines a Lua-language scripting API. The Lua scripting language is a fast, light-weight, embeddable scripting language. For information about the language, see http://www.lua.org/. 
+The Lightroom Classic scripting environment provides a programming structure that includes some enhancements to the basic Lua-language constructs. This section describes the API usage and terminology. 
+¥	The API defined for the Lightroom Classic SDK is fully documented in the Lightroom Classic SDK API Reference, which is part of the SDK. When you have installed the SDK, the home page is at:
+LR_SDK_install_location/API Reference/index.html
+Namespaces, classes, and objects
+Lightroom Classic defines a namespace as a table containing a suite of functions. This is somewhat like the Lua module; however, Lightroom Classic does not use or support the module system that was introduced in Lua 5.1 (see http://www.lua.org/manual/5.1/manual.html#5.3). 
+Lua does not have an object-oriented programming model, but it does allow Lua tables to be used in an object-like fashion, which the Lightroom Classic SDK does. Lightroom ClassicÕs object and class model is derived from the one described in Chapter 16 of "Programming in Lua," available online at http://www.lua.org/pil/16.html. 
+In Lightroom Classic terminology, object and class are used in the typical object-oriented fashion: that is, a class is a description of a set of behaviors that are associated with a particular data structure, and an object is a single instance of that class. 
+¥ The Lightroom Classic SDK defines a set of namespaces and a set of classes; see ÒAccessing namespace functions directlyÓ on page 11 and ÒCreating objectsÓ on page 13. Plug-ins cannot define either namespaces or classes. 
+¥ The Lua language defines built-in namespaces and global functions, of which a subset are accessible in the Lightroom Classic SDK Lua environment. See ÒUsing built-in Lua featuresÓ on page 18.
+Accessing namespace functions directly
+You can access a namespace by using the built-in function import(); it takes a single parameter, the name of the namespace to be loaded, and returns the table of functions, which you can then access using dot notation.
+For example:
+local LrMD5 = import 'LrMD5' -- assign namespace to local variable
+local digest = LrMD5.digest( 'some string' ) -- call "digest()" function in namespace This example shows the convention of assigning the namespace to a variable of the same name. This practice is not enforced in any way, but helps avoid confusion.
+The Lightroom Classic SDK defines these namespaces; for complete details, see the Lightroom Classic SDK API Reference.
+Namespace
+Description
+LrApplication
+Application-wide information; provides access to the active catalog.
+LrBinding
+Allows you to define data relationships between UI elements and other objects.
+LrColor
+Both a namespace and a class. Allows access to color values, specified using RGB or grayscale values or by name.
+LrDate
+Allows you to create and manipulate date-time values.
+LrDialogs
+Allows you to show messages in predefined modal dialogs.
+LrErrors
+Allows you to format Lua error strings to be used in error dialogs.
+LrExportSettings
+Allows you to check or set an image file format for an export operation.
+LrFileUtils
+Allows you to manipulate files and folders in the file system in a platform-independent manner.
+LrFtp
+Both a namespace and a class. The namespace functions allow you to work with the paths and settings for FTP connections created with the LrFtp class.
+LrFunctionContext
+Both a namespace and a class. The namespace functions allows you to make functions calls with defined methods for cleaning up resources allocated during the execution of a function or task.
+LrHttp
+Allows you to send and receive data using HTTP. Must be used within a task.
+LrLocalization
+Allows you to localize your plug-in for use in multiple languages.
+LrLogger
+Both a namespace and a class. Provides logging capability.
+LrMath
+Provides additional basic math operations not otherwise available in the Lua language.
+LrMD5
+Provides MD5 digest services.
+LrPasswords
+Provides a mechanism to store passwords in a secure fashion.
+LrPathUtils
+Allows you to manipulate file-system path strings in a platform-appropriate way. (All paths are specified in platform-specific syntax.)
+LrPhotoInfo
+Allows you to get information about individual photo files, such as their dimensions.
+LrPrefs
+Allows you define persistent preferences for your plug-in.
+LrProgressScope
+Both a namespace and a class. Allows you to provide feedback to the user about the progress of a long-running task
+LrRecursionGuard	Both a namespace and a class. Provides a simple recursion guard for function execution.
+Namespace
+Description
+LrShell
+Provides access to shell functions of the platform file browser (Windows Explorer in Windows or Finder in macOS).
+LrStringUtils
+Provides string manipulation utilities.
+LrSystemInfo
+Provides information about the environment in which Lightroom Classic is running, such as whether it is 32-bit or 64-bit architecture.
+LrTasks
+Allows you to start and manage tasks that run cooperatively on Lightroom Classic's main UI thread.
+LrView
+Both a namespace and a class. The namespace functions allow you to obtain the factory object, create bindings between UI elements and data tables, and share placement between UI elements.
+LrXml
+Both a namespace and a class. The namespace functions allows you to create an XML builder object, and to parse existing XML documents into read-only XML DOM objects.
+Creating objects 
+When you use the import() function with a class, it returns a constructor function, rather than a table. Use the constructor to create objects, which you can initialize with specific property values. You can then access the functions and properties through the object using colon notation. 
+This example shows the standard way to create and use an object:
+local LrLogger = import 'LrLogger'
+    -- LrLogger is a constructor function, not a table with more functions local logger = LrLogger( 'myPlugin' )
+    -- Calling this function returns an instance of LrLogger, which is assigned to -- local variable logger. Notice the lowercase naming convention for objects. logger:enable( 'print' )
+logger:warn( 'something bad happened' )
+-- Method calls on the object that was just created.
+There are some exceptions to this technique. You can create some objects using functions in other objects or namespaces, such as LrApplication.activeCatalog(). Others are created and passed to you by Lightroom Classic. 
+Class
+Description
+Object creation
+LrCatalog
+Provides access to a 
+Lightroom Classic catalog.
+Returned by LrApplication.activeCatalog() 
+Most classes provide a pointer back to the catalog that contains an object, such as LrPhoto.catalog.
+The Lightroom Classic SDK defines these classes; for complete details, see the Lightroom Classic SDK API Reference.
+
+Class
+Description
+Object creation
+LrCollection
+Provides access to a photo collection.
+Returned by:
+LrCatalog:createCollection()
+LrCatalog:createSmartCollection()
+LrCatalog:getActiveSources()
+LrCatalog:getChildCollections()
+LrCatalog:getCollectionByLocalIdentifier()
+LrCollectionSet:getChildren()
+LrCollectionSet:getChildCollections
+LrPhoto:getContainedCollections()
+LrCollectionSet
+Provides access to a photo collection set.
+Returned by:
+LrCatalog:createCollectionSet()
+LrCatalog:getChildCollectionSets()
+LrCollectionSet:getChildren()
+LrCollection:getParent()
+LrCollectionSet:getParent()
+LrCollectionSet:getChildCollectionSets()
+LrColor
+Encapsulates a color.
+Import constructor: local LrColor = import 'LrColor'
+LrDevelopPreset
+Provides access to a develop preset.
+Returned by 
+LrDevelopPresetFolder:getDevelopPresets()
+LrDevelopPreset Folder
+Provides access to a develop-preset folder.
+Returned by: 
+LrApplication.developPresetFolders()
+LrDevelopPreset:getParent()
+LrExportContext
+Encapsulates an export context. 
+Object is passed to your 
+processRenderedPhotos() function
+LrExportRendition
+Encapsulates a single photo rendition operation, generated during an export operation.
+Returned by LrExportSession:renditions()
+LrExportSession
+Provides access to the list of photos and renditions generated during an export operation.
+Import constructor:
+local LrExportSession = import 'LrExportSession' 
+An object is also available as the value of exportContext.exportSession.
+	LrFilterContext	Provides access to choices 	An LrFilterContext object is passed to your 
+the user has made in the 	plug-in as a parameter to your service script's Export dialog, and to the postProcessRenderedPhotos function. You cannot list of photos to be 	import the namespace or access the properties and exported.	functions in any other way.
+Class
+Description
+Object creation
+LrFolder
+Provides access to a file-system folder that contains photos.
+Returned by:
+LrCatalog:getFolders()
+LrCatalog:getActiveSources()
+Lrcatalog:getFolderByPath()
+LrFolder:getParent()
+LrFtp
+Both a namespace and a class. The object represents an FTP connection.
+Import the namespace: local LrFtp = import 'LrFtpÕ
+¥	Use the factory function, LrFtp.create() 
+LrFunctionContext
+Both a namespace and a class. Use the object to register the cleanup handlers for the called function execution.
+Import the namespace:
+local LrFunctionContext = import 'LrFunctionContextÕ
+¥	Object is passed to functions called using the namespace calling functions. For example:
+LrFunctionContext.callWithContext(
+"showCustomDialog", function(contextObject)
+    -- body of called function end)
+LrKeyword
+Encapsulates a keyword.
+Returned by:
+LrCatalog:createKeyword()
+LrCatalog:getKeywords()
+LrKeyword:getChildren()
+LrKeyword:getParent()
+LrLogger
+Provides a mechanism for writing debug output that can be viewed with an external log-viewer application.
+Import constructor:
+local LrLogger = import
+'LrLogger'
+LrObservableTable
+Implements an observable properties table. 
+Create an observable table by calling 
+LrBinding.makePropertyTable(). Some API functions create observable tables for you.
+LrPhoto
+A single photo or virtual copy in Lightroom 
+Classic's active catalog.
+Returned by many functions of LrCatalog, 
+LrCollection, LrExportSession and so on. Many classes provide access to the photo objects that they are associated with, such as LrKeyword:getPhotos().
+LrPlugin Provides access to the Access the object for your plug-in with the global plug-in configuration, variable _PLUGIN.
+including the path and resources.
+Class
+Description
+Object creation
+LrProgressScope
+Allows you to provide feedback to the user about the progress of a long-running task.
+Import constructor:
+local LrProgressScope = import
+'LrProgressScope'
+LrPublished Collection
+Provides access to a published-photo collection.
+Access functions are parallel to those for LrCollection, such as:
+LrCatalog:createPublishedCollection()
+LrPublishedCollectionSet:getChildren()
+LrPublished
+CollectionSet
+Provides access to a published-photo collection set. 
+Access functions are parallel to those for LrCollectionSet, such as:
+LrCatalog:getPublishedCollectionSets()
+LrPublishService:getChildCollectionSets()
+LrPublishedPhoto
+Encapsulates the publishing information associated with a photo that is part of a published collection.
+Returned by 
+LrPublishedCollection:getPublishedPhotos()
+LrPublishService
+Provides access to a named publishing service.
+Returned by LrCatalog:getPublishServices()
+LrRecursionGuard
+Provides a simple recursion guard for function execution.
+Import constructor:
+local LrRecursionGuard = import 'LrRecursionGuard'
+LrVideoExportPreset
+Represents a single video export preset.
+Returned by 
+LrExportSettings.videoExportPresets.
+LrView
+Allows you to construct dialog box elements. 
+Import the namespace: local LrView = import 'LrViewÕ
+¥ When creating a dialog to be invoked from a menu command, import namespace and obtain a factory object with the namespace function LrView.osFactory().
+¥ When extending a Lightroom Classic dialog, a factory object is passed to sectionsForTopOfDialog() and sectionsForBottomOfDialog()
+LrWebViewFactory	Allows you to construct 	In a web-engine plug-inÕs galleryInfo.lrweb file, elements for panels in the 	this object is passed to the views function. It 
+	Web module.	extends the standard view factory with additional 
+functions. 
+This object is only available within web-engine plug-ins.
+Class
+Description
+Object creation
+LrXml
+Both a namespace and a class. There are two types of object: 
+¥ A builder object allows you to create and manipulate XML documents.
+¥ A DOM object is 
+read-only, and allows you to examine an existing XML document.
+Import the namespace: local LrXml = import 'LrXmlÕ
+¥ Create a builder object with the namespace function LrXml.createXmlBuilder().
+¥ Create a DOM object with the namespace function LrXml.parseXml().
+Accessing object functions and properties
+A few classes (LrFtp, LrView, LrXml, and LrFunctionContext) act as both classes and namespaces, and allow you to call some functions directly in the imported namespace, using dot notation. By convention, the documentation uses lowercase names, as well as colon notation, to indicate that a function is called on an instance. For example:
+LrFtp.appendFtpPaths() -- A namespace function ftpConnection:path() -- An object function
+Classes define both functions and properties. To access properties in objects, use the dot notation. Again, the documentation uses the lowercase naming convention to indicate an instance of a class: exportRendition.photo -- An object property
+A property can have no value; a nil property value is not the equivalent of false, zero, or the empty string. Setting a nil value for a property that has a default value causes the property to revert to the default. 
+Using function contexts for error handling
+The LrFunctionContext namespace and class is a programming utility for error handling. 
+Use LrFunctionContext.callWithContext() to wrap a function call. This allows you to attach any number of handler functions to the call that respond to errors that may occur during the execution of the wrapped function, or clean up resources regardless of how the wrapped function terminates. If you attach multiple cleanup or error handlers to the wrapped function, the handlers are called in reverse order of attachment.
+Some of the functions in LrTasks work in conjunction with LrFunctionContext to provide standardized error reporting behavior. For instance, LrTasks.startAsyncTask() calls 
+LrDialogs.attachErrorDialogToFunctionContext(). This ensures that errors that occur during the execution of the task are reported to the user and not silently forgotten. Lightroom Classic provides predefined error dialogs that you can customize with explanatory messages, as shown in the following example. You can use LrTasks.startAsyncTaskWithoutErrorHandler() if you wish to provide your own error reporting instead.
+Example: Function context with an error dialog
+local LrDialogs = import 'LrDialogs' local LrErrors = import 'LrErrors' 
+local LrFunctionContext = import 'LrFunctionContext'
+LrFunctionContext.callWithContext( 'error handling demo', function ( context ) -- If an error is thrown during this function call context, -- show a standard error dialog. 
+LrDialogs.attachErrorDialogToFunctionContext( context )
+-- The code needed to perform your task goes here
+-- For illustration, force an error here, throw error two different ways if showInternalError then -- in some case error "Example of an internal error" --call built-in error() function
+else -- otherwise, use the LrErrors throw function
+LrErrors.throwUserError( LOC "$$$/MyPlugin/Error/Example=Example of a localized error message." ) 
+end 
+end )
+This shows the predefined error dialog with customized text, according to how the error was thrown:
+
+Using built-in Lua features
+The Lua language defines built-in namespaces and global functions, of which only a subset are supported in the Lightroom Classic SDK Lua environment, as follows:
+Lua global functions 
+¥ Available in Lightroom Classic:
+assert(), dofile(), error(), getmetatable(), ipairs(), load(), loadfile(), loadstring(), next(), pairs(), pcall(), rawequal(), rawget(), rawset(), select(), setmetatable(), tonumber(), tostring(), type(), unpack()
+¥ Not available in Lightroom Classic: collectgarbage(), gcinfo(), getfenv(), module(), newproxy(), package(), setfenv() Lua standard namespaces
+¥ Available in Lightroom Classic: io, math, string
+¥ Not available in Lightroom Classic: package 
+¥ Partially available: 
+¥ os: Contains only the functions clock(), date(), time(), and tmpname(). All other functions removed. Use LrFileUtils, LrDate, and LrTasks instead.
+¥ table: Contains all functions except getn(), setn(), and maxn(), which are deprecated as of Lua 5.1.
+¥ coroutine: Contains only the functions canYield() and running().
+¥ debug: Contains only the function getInfo().
+Defining function contexts and tasks
+Your plug-in can use a function context to create and manage a task, which is a kind of lightweight process that runs cooperatively on Lightroom Classic's main (user interface) thread. If your service defines a lengthy export operation that would block the main Lightroom Classic process, you should run it as a background task, using functions such as LrFunctionContext.postAsyncTaskWithContext(). Some API functions, such as those in the LrHttp namespace, are only available when called from within a background task.
+The LrFunctionContext object helps you clean up resources following the execution of a function. You can register any number of cleanup handlers to respond to the success or failure of a function. You must create property tables within a function context, so that Lightroom Classic can remove notifications when the table is no longer needed. 
+You do not create instances of LrFunctionContext directly. They are created by the calling functions, and 
+exist only for the lifetime of the function call or task. Access the calling functions, such as LrFunctionContext.postAsyncTaskWithContext(), directly from the imported namespace. A functionContext object is passed as the first parameter of the call, followed by any other parameters you provide. Use the passed object to provide the cleanup handlers for the called function execution.
+In general, you are responsible for creating tasks when needed. There are some exceptions, however. Many of the plug-in callback functions in the export and publish APIs are called from within tasks that Lightroom Classic starts. These are marked as such in the API reference.
+For details of the LrFunctionContext and LrTasks functions, see the Lightroom Classic SDK API Reference. 
+Including scripts with require()
+Lightroom Classic defines a require() function that works in a similar, but more narrowly-defined, fashion from the version that exists in Lua. The require() function takes a single parameter, which is the name of another Lua file in the same plug-in. On the first call, this file is loaded and executed in the context of its plug-in; the return value is saved. If the require() function is called again in the same plug-in, its saved value is used (unless the entire plug-in has been garbage collected, in which case the required file is loaded and executed again).
+A script to be executed this way typically has the effect of defining a table containing a suite of functions. For example: SomeFile.lua
+SomeFile = {}
+-- Typically a file that is required will define a global table whose name -- matches the file name.
+-- Note that this global is defined in a special function environment for your
+-- plug-in and does not affect Lightroom as a whole. 
+-- You can give this table any name that does not conflict with built-in names
+-- and keywords from Lua and Lightroom. In general, avoid names that start with -- Lr to avoid conflicts with future versions of Lightroom.
+function SomeFile.doSomething( arg ) return tostring( arg )
+end
+Usage of require()
+require 'SomeFile.lua'
+    -- Causes SomeFile.lua to be executed and the value of SomeFile defined above -- becomes available in the scope of this file. SomeFile.doSomething( 42 )
+Lua syntax notes
+For people unfamiliar with the Lua language, here are some syntax conventions and usage notes.
+¥ Literal strings can be surrounded by either single or double quotes. These two statements are equivalent:
+local a = 'my string' local a = "my string"
+¥ Semicolons at the ends of statements are optional. We typically omit them.
+¥ If you call a function with a single parameter that is a string literal or a table, you can omit the parentheses around the argument list. This is frequently done when calling the built-in functions import() and require().
+These three statements are equivalent (where func is a variable containing a valid function):
+func( "foo" ) func "foo" func 'foo'
+These two statements are also equivalent; the simpler syntax is commonly used when building view descriptions:
+func( { a = 1, b = 2 } ) func{ a = 1, b = 2 }
+¥ It is useful to read the chapter on table constructors (http://www.lua.org/pil/3.6.html). There are several shorthand formats that we use widely, especially in view descriptions. For example, these forms are equivalent:
+local t = { a = 1, b = 2 } local t = { [ "a" ] = 1, [ "b" ] = 2 } local t = {}; t.a = 1; t.b = 2
+¥ Lua defines an array as a table with numbered keys. Arrays in Lua are 1-based; that is, the first item in the array is at index 1, not index 0.
+¥ The value nil evaluates to a Boolean value of false, but numbers (including 0) evaluate to true. Thus, in a conditional, only nil and false are considered false. If you use 0 as the condition of an if or while statement for example, the statement is executed, because the number 0 is a true value. 
+¥ Lightroom Classic defines Boolean globals, WIN_ENV and MAC_ENV, which you can use to determine which platform your script is running on. The LrSystemInfo namespace (first available in version 3.0 of the Lightroom SDK) can provide additional information about the platform, including whether is 32-bit or 64-bit.

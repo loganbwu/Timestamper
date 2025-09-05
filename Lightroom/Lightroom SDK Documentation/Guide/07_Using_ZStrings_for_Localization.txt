@@ -1,0 +1,161 @@
+7	Using ZStrings for Localization
+ZStrings are an Adobe convention for defining localization strings. You identify a string according to its usage in the user interface, and specify it in the ZString format. This enables Lightroom Classic to look up language-specific versions of the string to display to the user.
+¥ In Lightroom Classic, you pass ZStrings to the built-in LOC function to allow for localization of your plug-inÕs displayed text. See ÒThe LOC functionÓ on page 150.
+¥ Resolution of ZStrings depends on dictionary files that you supply, which contain the mappings from the ZString path to the localized string. See ÒLocalization dictionary filesÓ on page 151.
+NOTE: Reloading a plug-in interactively or automatically after export does not reload any localization dictionaries supplied with that plug-in. The translation dictionaries are read only when the plug-in is first loaded or Lightroom Classic is restarted. 
+ZString format
+The format of a ZString is:
+$$$/ZString_path/stringKey=defaultValue 
+$$$
+The ZString marker is always required to identify a ZString and distinguish it from any other 8-bit ASCII string.
+/ZString_path/ stringKey=
+The path and key uniquely identifies a specific string, and is used to look up the translation in a dictionary file that you provide with your plug-in (see ÒLocalization dictionary filesÓ on page 151.) 
+The path is a series of 7-bit ASCII character strings separated by the slash (/) character. You can use any strings you wish, except that no white space is allowed. 
+The last element of the path is a specific key name, which is separated from the default value by an equal sign (=). 
+The path groups a set of properties; for example, you might use a unique path for a particular plug-in, and within that plug-in further group all strings that appear in a particular dialog.
+Each plug-in has its own mapping of the context paths, so your path names will not conflict with those used by other plug-ins, or by Lightroom Classic itself.
+defaultValue
+The string following the separator (=) is the default display string to use for this ZString. If no matching key exists in the active localization dictionary (or if no appropriate dictionary is found) this value is displayed to the user.
+Strings values used in ZStrings can contain escape sequences to indicate certain characters; see ÒZString characters and escape sequencesÓ on page 149.
+     148
+ZString format
+Like any Lua string, ZStrings can be enclosed in single or double quotes. For example:
+LOC "$$$/MyPlugin/Dialogs/Description/sectionName=Description"
+LOC '$$$/MyPlugin/Dialogs/Description/Title=Document Title:'
+ZString characters and escape sequences 
+ZStrings in code should consist entirely of low-ASCII characters. The key should only contain characters in the set "a-ZA-Z0-9/". The value can contain any low-ASCII character. 
+¥ ZStrings allow some common non-low-ASCII characters to be substituted for escape sequences in the strings. For example, the sequence ^T includes the trademark symbol (ª) in that location in the resulting string.
+¥ The general-purpose sequence ^U encodes any arbitrary Unicode character by its code point, in the form ^U+1234.
+¥ An escape sequence with a number is a replacement point.; the sequence to be replaced by another string supplied as an additional argument to LOC(); see ÒThe LOC functionÓ on page 150.
+These substitution sequences are recognized:
+Sequence
+Replacement
+^r
+ carriage return
+^n
+ line feed
+^B
+ bullet
+^C
+ copyright 
+^D
+ degree 
+^I
+ increment
+^R
+ registered trademark 
+^S
+ n-ary summation
+^T
+ trademark 
+^!
+ not
+^{
+ left single straight quote
+^}
+ right single straight quote
+^[
+ left double quote
+^]
+ right double quote
+^'
+ right single curly quote 
+^.
+ ellipsis ("...")
+^e
+Latin small e with acute accent
+	^E	Latin small e with circumflex
+The LOC function
+Sequence
+Replacement
+^d
+Greek capital delta
+^L
+backslash ("\")
+^V
+vertical bar ("|")
+^#
+ command key (in macOS)
+^`
+ accent grave ("`") 
+^^
+ circumflex ("^")
+^0 - ^9
+Marks insertion point for additional LOC argument strings; see ÒThe LOC functionÓ on page 150.
+^U+xxxx
+ Unicode code point U+xxxx
+The LOC function
+The global LOC function takes a ZString argument, and automatically performs the table lookup to resolve the display string for the current locale. If it cannot find a matching string in a dictionary for the current locale, or if there is no dictionary for the current locale, it returns the default string provided with the ZString.
+You can use the LOC function anywhere you specify display strings:
+¥ In the title for your Export Service Provider
+¥ In the title for menu items that you add
+¥ In the title and value properties of UI elements
+Any of these properties can take a simple string or a LOC and ZString value. You are not required to use the LOC function if you do not need to localize the text of your plug-in.
+Here is an example of localizing the text that identifies an Export Service Provider in the Export destination section of the Export dialog: 
+LrExportServiceProvider = { title = LOC "$$$/MyPlugin/Name=My Plug-in", file = 'MyPluginExportServiceProvider.lua', ... },
+The LOC function also allows you to combine strings using placeholders in the ZStringÕs value string, and additional string arguments to the function. The placeholders use ÒhatÓ notation with a numeric value; the first is ^1, the second ^2, and so on. You can specify up to 9 additional string arguments, which are inserted at the placeholder locations ^1 through ^9 in the localized text.
+For example:
+LOC( "$$$/Message=Could not open the file ^1 because ^2.", 
+ "myfile.jpg", "a disk error occurred" )
+The placeholders are replaced by the string arguments, resulting in this string:
+"Could not open the file myfile.jpg because a disk error occurred."
+Localization dictionary files
+Localization dictionary files
+To localize your plug-inÕs user interface, you must provide a localization dictionary file for each language, named and located as follows:
+¥ Each translation dictionary must be in a file named TranslatedStrings_code.txt. The code is the two-letter ISO code for the language, such as en for English, fr for French, de for German, ja for Japanese, and so on. 
+¥ The dictionary files must located be in the top plug-in folder, with the Info.lua file.
+Lightroom Classic automatically selects the appropriate translation file based on the current language in use for the application.
+Lightroom Classic performs ZString translation when it creates the object containing the string. When the LOC function encounters a ZString, it looks for the localization dictionary appropriate to the current locale, and uses it to find translations for static ZString values. 
+¥ If there are no localization dictionary files, or if none is found to match the application language, the LOC function returns the value string found in the original ZString. 
+¥ When it does find a matching dictionary file, the LOC function locates the ZString in the dictionary file using the context path and property name; that is, the first part of the supplied ZString up to, but not including the = sign. If a matching line is found, LOC removes the first part of the found ZString up to and including the = sign, and returns the remaining string as the translation. 
+¥ If a matching line is not found in the dictionary, the function returns the value string found in the original ZString. 
+Localization dictionary file format
+A localization dictionary file is a text file containing one ZString translation entry per line. Each ZStringÕs final string value is in the destination language. The text must be encoded in UTF-8.
+The only things allowed on a line (after the first character) are ZStrings; no newline characters or comments are allowed. The ZStrings in this file must all be enclosed with double quotes.
+The following text editors are recommended for creating these files:
+¥ In macOS simply use TextEdit and make sure you save the file type as ÒUTF-8Ó (rather than UTF-16 or UCS-2, for instance). 
+¥ In Windows use Notepad, and be sure to save the file as type ÒUTF-8.Ó
+The file is UTF-8 formatted text. A leading UTF-8 byte-order marker (EF BB BF) is permitted.
+Localization dictionary files
+Example dictionary file
+Here is a small example of a German translation dictionary:
+"$$$/MyPlugin/Size/Small=Klein" 
+"$$$/MyPlugin/Size/Medium=Mittel" 
+"$$$/MyPlugin/Size/Large=Gro§" 
+"$$$/MyPlugin/Size/Large/Extra=Sehr gro§" 
+"$$$/MyPlugin/Image/Title=Titel" 
+"$$$/MyPlugin/Image/Quality=Qualitt" 
+"$$$/MyPlugin/Image/View=Ansicht" 
+"$$$/MyPlugin/Enabled=Aktiviert"
+Supported languages
+These languages are supported:
+Language
+Language code
+German
+de
+English
+en
+Spanish
+es
+French
+fr
+Italian
+it
+Japanese
+ja
+Korean
+ko
+Dutch
+nl
+Portuguese
+pt
+Russian
+ru
+Swedish
+sv
+Thai
+th
+Chinese, simplified
+zh_cn
+Chinese, traditional
+zh_tw

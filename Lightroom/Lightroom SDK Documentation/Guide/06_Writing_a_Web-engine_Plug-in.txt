@@ -1,0 +1,775 @@
+6	Writing a Web-engine Plug-in
+This chapter describes the web-engine plug-in mechanism in the Lightroom Classic SDK. This mechanism allows you to define new HTML web engines for the Web module. A web engine controls how a photo gallery is generated.
+Web-engine plug-ins use a different architecture from standard plug-ins, and are not managed by the 
+Plug-in Manager dialog. All available web engines appear in the Engine panel at the upper right of the Web module of Lightroom Classic, including those predefined by Lightroom Classic and any defined by plug-ins. 
+Your plug-in can also customize the control panels in the Web module, so that the controls map to user-customizable features of your own web engine.
+Creating a web-engine plug-in
+A web-engine plug-in consists of:
+¥ A manifest file named manifest.lrweb, which maps LuaPage source files to the HTML output files that make up a photo gallery. This file uses a special command set; see ÒWeb SDK manifest APIÓ on page 129.
+¥ An information file named galleryInfo.lrweb, which defines the data model and customized UI for your gallery type. See ÒDefining the data modelÓ on page 118.
+¥ One or more web-page templates, in the form of LuaPages; that is, HTML pages with embedded Lua code that is evaluated for display in the preview browser, or on publication, to generate dynamic content. See ÒLuaPage syntaxÓ on page 136.
+¥ Additional resources and supporting files, such as images, style sheets, string dictionaries for localization, and code files that define special behaviors.
+Collect these files into a single folder, which you must place in the following directory according to your operating system:
+In macOS: userhome/Library/Application Support/Adobe/Lightroom/Web Galleries/
+In Windows: LightroomRoot\shared\webengines 
+The name of the plug-in folder must end with .lrwebengine; for example, myWebPlugin.lrwebengine.
+Folder contents
+Here are the contents of a sample web-engine folder named default_html.lrwebengine:
+
+Root default_html.lrwebengine/ 
+
+Template manifest.lrweb information galleryInfo.lrweb
+     117
+LuaPage templates
+about.html detail.html foot.html grid.html head.html
+Resources
+resources/
+	style sheets	css/ie6.css
+ie7.css master.css
+
+	JavaScript	js/live_update.js
+
+	images	misc/icon_fullsize.png
+shadow-grid.gif shadow.png
+
+	Localization 	strings/
+dictionaries	de/TranslatedStrings.txt en/TranslatedStrings.txt fr/TranslatedStrings.txt ja/TranslatedStrings.txt
+
+Iconic preview iconic_preview/flash_gallery_preview.swf 
+
+source files (not 	flash_gallery_preview.as needed for 	flash_gallery_preview.fla
+delivery)
+
+Defining the data model 
+The folder that defines your gallery type must define the data model in an information file named galleryInfo.lrweb. The file defines various parameters for the gallery, using this simple Lua-table format:
+return { property_name_1 = "value string", property_name_2 = "value string", ...
+}
+Top-level property names are predefined, as shown in ÒGalleryInfo top-level entriesÓ on page 119. 
+¥ The top-level model property is extensible, containing both predefined and plug-in-defined sections to create a complex data model. Sections are grouped, using brackets and dot notation to specify a complex property name. See ÒData model entriesÓ on page 120.
+¥ The top-level views property is a function that customizes the user interface for your web engine, creating UI controls in the Web module control panels and binding them to the data model that your plug-in defines. See ÒDefining a UI for your modelÓ on page 122.
+GalleryInfo top-level entries 
+The following top-level properties are defined in the galleryInfo.lrweb file:
+title 
+A localizable title string for the gallery type, which appears in the Web moduleÕs Engine list. You can localize the title string using the LOC function. 
+id 
+Each gallery must have a unique identifying string. By convention, use reverse-domain nomenclature, as for Java packages. For example, com.myCompany.myDivision.myGallery.
+galleryType 
+The type of gallery. Currently only one type is allowed:
+¥ "lua" Ñ An HTML gallery that uses Lua Server Pages. 
+maximumGallerySize 
+The maximum number of photos this gallery can reasonably display.
+model
+A table of user-configurable options for this web engine such as colors, labels, dimensions, image quality settings, grid row and column specifications, and so on. 
+The keys in this table are strings that use dot-separated notation to break into separate areas; for example, "model.nonDynamic.numRows".
+SeeÒData model entriesÓ on page 120.
+views 
+A function that returns a table of view descriptions by name, with entries for "labels", "colorPalette", "appearanceConfiguration", and "outputSettings". Each of these corresponds to a panel in the Web module, and each entry defines new UI controls to be added to that panel. 
+See ÒDefining a UI for your modelÓ on page 122.
+iconicPreview 
+A table of information for controlling the live preview movie for a gallery in the Preview panel.
+See ÒCreating a previewÓ on page 127.
+aboutBoxFile
+The name of an HTML file to be displayed in the About box for this web engine. The file must be simple, self-contained HTML that does not reference any other resources (such as CSS or images).
+The About box is displayed when the user chooses Web > About [thisEngine]. 
+supportsLiveUpdate
+Boolean, true if this web engine supports the Live Update mechanism. See ÒWeb HTML Live UpdateÓ on page 142.
+This example shows the top-level entries from the galleryInfo.lrweb file of the built-in HTML gallery:
+return {
+LrSdkVersion = 5.0,
+LrSdkMinimumVersion = 2.0, -- minimum SDK version required by this plugin
+title = LOC "$$$/AgWPG/Templates/HTML/Title=Lightroom HTML Gallery", id = "com.adobe.wpg.templates.jardinePro",
+ galleryType = "lua", maximumGallerySize = 50000,
+ aboutBoxFile = "about.html", supportsLiveUpdate = true, model = {...}
+}
+Here is the About box for the built-in HTML Web Gallery:
+
+Data model entries
+The model entry in the table returned by the galleryInfo.lrweb file defines the data model for your web engine. The model entry contains both predefined sections such as photoSizes, and plug-in-defined sections for local data, such as the one named metadata in the following example. 
+return { ...
+model = {
+[ "photoSizes.large.width" ] = 250, ...
+[ "photoSizes.thumb.width" ] = 130, ...
+["appearance.textColor.color"] = "#166AF2", ["appearance.textColor.cssID"] = ".textColor", ...
+["lightroomApplication.identityPlateExport"] = "(main)", ["lightroomApplication.jpegQuality"] = 70, ...
+["metadata.siteTitle.value"] = LOC
+                    "$$$/Templates/HTML/Defaults/props/SiteTitle=Site Title", ... }
+}
+Within the predefined photoSizes section, the size-class names (in this example, large and thumb) are defined by the plug-in. Within each size class, however, there are a set of predefined properties such as width and height. 
+Model properties can have simple number, string or color values, but to make a property dynamic, you can make the value a function definition. See ÒCreating a dynamic data modelÓ on page 126.
+These are the predefined properties for the model table:
+
+appearance.cssClass.cssProp appearance.cssClass.cssID
+For an HTML gallery, entries in the appearance section are available in CSS form automatically, if they follow the correct convention. Specify each key is in this format:
+[ "appearance.cssClassName.cssPropertyName" ] = value In addition, for each unique name, you must also add an entry that tells Lightroom Classic what CSS selector to use for that name, in this form:
+[ "appearance.cssClassName.cssID" ] = selectorName For example, to control the background color of all elements that belong to CSS class myClass, and provide an initial default value of red, add these two entries to the model:
+[ 'appearance.myClass.background-color' ] = "#ff0000", 
+[ 'appearance.myClass.cssID' ] = '.myColor',
+
+photoSizes.sizeClass.property width height maxWidth maxHeight metadataExportMode tracking
+These entries specify size classes of rendered JPEGs Lightroom Classic should create. Some galleries might have only one size, such as a thumbnail-only gallery, but typically a gallery has layers with different image sizes (such as thumbnail, small, full-size). The size-class names are defined by your plug-in.
+For each named size class, you can specify properties; for example:
+[ "photoSize.small.width" ] = 50,
+Each size class has these properties:
+width, heightÑThe size in pixels, as chosen by the user maxWidth, maxHeightÑThe largest allowed size in pixels metadataExportModeÑWhat metadata to include, either 
+'copyright' or 'all'. 
+trackingÑBinds to the image-size slider in the control panel, so that the image can be resized interactively during preview. Lightroom Classic sets this to true while resizing is in progress.
+lightroomApplication.property identityPlateExport jpegQuality useWatermark outputSharpeningOn outputSharpening
+These properties control how Lightroom Classic behaves when creating the gallery: 
+identityPlateExportÑIf your gallery can encorporate a PNG version of the identity plate, use the value "(main)". 
+jpegQualityÑThe quality of the rendered JPEGs. Range is [0..100], where 100 is the best quality.
+useWatermarkÑTrue if rendered JPEGs should include a copyright watermark.
+outputSharpeningOnÑTrue if rendered JPEGs should be sharpened. Default is true.
+outputSharpeningÑThe type of sharpening, one of 1 (low), 2 (standard, the default), or 3 (high).
+perImageSetting.property setting_names
+A table that defines a per-image text description. Specifying one of these entries customizes the Image Info panel in the Web module. Each perImageSetting entry defines a checkbox, label, and edit text control, like those for the built-in per-gallery Title and Caption. 
+Each table has these entries: 
+titleÑThe localizable display name of this setting, which appears in the label. valueÑ Text to associate with each image. A string that can contain text-token placeholders in double curly braces. The user can edit this text. enabledÑ When true, the checkbox is checked. 
+These values are stored as properties of image.metadata. Your template for the image details page can reference the text in order to display it with the image. For example, if you name a setting description, access the value using 
+$image.metadata.description.value.
+See ÒCustomizing per-image textÓ on page 125.
+	plug-in-defined properties 	You can define additional properties to store gallery-wide text 
+labels; for example, a site title or collection title. You can also define properties to store appearance parameters that control the look of the gallery, but do not work through CSS; for example, how many rows or columns in the grid, or color properties that need to be accessed dynamically by JavaScript. The names of such properties are defined by your plug-in for its own use. 
+
+Defining a UI for your model
+The views entry in the table returned by the galleryInfo.lrweb file defines the user interface for your web engine. It is a function that is passed two arguments, a controller (which is an observable table that contains your model data) and a webViewFactory object that allows you to create and populate UI elements (as described in Chapter 5, ÒCreating a User Interface for Your Plug-in.") 
+The function returns a table of view descriptions by name, with entries that correspond to the control panels at the right of the Web module.
+labels
+The Site Info panel, which allows users to specify text to be associated with the site.
+colorPalette
+The Color Palette panel, which allows users to adjust the colors of various elements of the site.
+appearanceConfiguration
+The Appearance panel, which allows users to adjust the appearance of individual photos.
+outputSettings
+The Output Settings panel, which allows users to adjust various output parameters such as image quality and metadata inclusion.
+
+Within each entry, you can use the view factory object to create UI controls. Set the bound table to be the controller table, and bind control values to data values you have defined in your model.
+Here is an example of the format of the views function for your web engine:
+return { ... views = function( controller, f ) local LrView = import "LrView" local bind = LrView.bind local multibind = viewFactory.multibind
+return { labels = f:panel_content { -- returned item identifies panel bind_to_object = controller, -- bound table is passed controller f:subdivided_sections { f:labeled_text_input  { -- create controls in the sections title = "Site Title",
+    value = bind "metadata.siteTitle.value", -- bind to model data },
+...additional content...
+},
+colorPalette = f:panel_content { bind_to_object = controller, ...define content...
+},
+appearanceConfiguration = f:panel_content { bind_to_object = controller, ...define content...
+},
+outputSettings = f:panel_content { bind_to_object = controller, ...define content...
+},
+},
+    } end, ...
+}
+Using web view factories
+Notice that the view factory passed to views function is an extension of the standard view factory described in Chapter 5, ÒCreating a User Interface for Your Plug-in." It is an object of type 
+LrWebViewFactory, and it defines these additional functions for creating UI content suitable to the Web module (see the Lightroom Classic SDK API documentation for details):
+panel_content
+Creates a top-level panel in the Web module, which contains sections divided by heavy black lines.
+subdivided_sections
+Creates a section within a panel in the Web module. Within the section, control rows and columns are separated by light gray lines.
+	header_section_label	Creates a text label for a section within a panel, with suitable formatting.
+content_column slider_content_column checkbox_and_color_row color_content_column content_section header_section
+These create column-style containers for controls within a section. Some are generic, and some are specialized to particular types of row content, with suitable formatting.
+row popup_row slider_row
+checkbox_and_color_row label_and_color_row checkbox_row labeled_text_input
+These create row-style containers within column-style containers. Some are generic, and some contain specific sets of controls, with suitable formatting.
+metadataModeControl warning_icon identity_plate row_column_picker
+These create individual controls of types appropriate to web-engine usage. These can be placed in unspecialized column or row containers.
+Customizing per-image text
+The Image Info panel allows the user to specify text for use in gallery pages. Each text label is named with a label, such as Caption or Title, and can be enabled with a checkbox. A menu of preset values (the custom settings menu) allows the user to get dynamic text from the current imageÕs metadata. The presets can be further customized using the Text Template Editor, which allows users to define text that incorporates dynamic values from metadata. The user can also save customized text templates as new presets.
+Your page templates can access the userÕs text choices using this syntax:
+You can use the model entry perImageSetting to add text labels to your model. Each setting is identified by a property name that you define. Each setting adds a row of controls to the Image Info panel, which allows the user to choose the text value of that label.
+Your page templates can access the userÕs text choices for it using this syntax:
+$image.metadata.propertyName
+For example, the following defines a simple per-image description and title:
+model = { ...
+["perImageSetting.details"] = { enabled = true,
+value = "Default Custom-Text value",
+title = LOC "$$$/WPG/HTML/CSS/properties/ImageDetails=Details", },
+["perImageSetting.datatext"] = { enabled = true,
+value = "Default Custom-Text value",
+    title = LOC "$$$/WPG/HTML/CSS/properties/ImageData=Metadata", },
+}
+This definition creates these controls in the Image Info panel:
+
+The localized title text appears as the display name for the label. The checkbox and presets menu are supplied by Lightroom Classic. The value of the value entry appears as the default value for the Custom Text preset choice.
+To incorporate the userÕs choice of text in the image-detail template page, use code like this:
+<html>
+<body>
+<lr:ThumbnailGrid>
+<lr:GridPhotoCell>
+<pre>
+    $image.metadata.datatext, $image.metadata.details </pre>
+</lr:GridPhotoCell>
+<lr:GridRowEnd>
+<br>
+</lr:GridRowEnd>
+</lr:ThumbnailGrid>
+</body>
+</html>
+Localizing the UI
+Strings that appear in the UI, either in predefined Lightroom Classic controls or menus, or in those you define, can be localized using the LOC function, as described in Chapter 7, ÒUsing ZStrings for Localization.
+The LOC function looks up localized values in string dictionaries; your plug-in must supply these as part of the plug-in folder. To add string dictionaries to your plug-in, create a strings resource folder in your main plug-in folder, and name the subfolders with the appropriate language codes. For example:
+myWebPlugin.lrwebengine/strings/de/TranslatedStrings.txt myWebPlugin.lrwebengine/strings/fr/TranslatedStrings.txt ...
+Localization occurs when the user publishes the gallery. To get different language versions, the user must run Lightroom Classic in the desired locale, and publish another version of the gallery. 
+Creating a dynamic data model
+Model properties can have simple number, string or color values, but to make a property dynamic, you can make the value a function definition. When it needs to access the property, Lightroom Classic executes the function and the result is returned as the property value. The evaluation context makes your data model available in the global scope.
+A typical use of dynamic data is to tie two properties together, so that changing one changes the other. For example, you might want to control the aspect ratio by making photoSizes.mySize.width to be equal to photoSizes.mySize.height. To do this, you can use a function definition as the value of one of the properties. For example:
+["photoSizes.large.height"] = function() return photoSizes.large.width end, ["photoSizes.large.width"] = 450,
+This function simply accesses and returns the value of another property. You can, however, define a function to perform some transformation of the related value. You can, for instance, add formatting and logic using Lua's basic math and string manipulation functions. Lightroom Classic also provides a function, LrColorToWebColor, that converts an LrColor object to a string representation suitable for use in CSS.
+Creating a preview 
+The iconic preview for a web engine is an SWF movie of a gallery that can be shown in the "Preview" panel of the Web module. It presents a dynamic preview of the gallery using icons, rather than full-size images. 
+You can use the iconicPreview top-level gallery-info entry to specify how the iconic preview for your gallery should be implemented. This entry references a simple Flash¨ movie (which you must implement and include in the web-engine folder) that renders an ÒiconicÓ representation of each web page, in order to convey the general look of the web gallery in a simple, stylized form.
+The iconicPreview entry is a table with two entries:
+flashMovie
+A string value, the relative path from the root web-engine folder to a compiled Flash movie (an SWF file). 
+flashvars
+A function that returns a table of values to be used in the Flash movie. These are the model properties that you want represented in the iconic preview. 
+Each entry in this table is available at the _root level of the Flash movie environment. Numbers and string values are passed through without any conversions.  LrColor objects are converted to a string representation that is easy to parse in ActionScriptª. 
+Here is an example of an IconicPreview entry in the galleryInfo.lrweb file:
+return { ...
+iconicPreview = { flashMovie = "iconic_preview/flash_gallery_preview.swf" flashvars = function() local iconicData = { foregroundColor = appearance.textColor.color, showLogo = appearance.logo.display, cellBorderColor = nonCSS.cellBorderColor, cellRolloverColor = nonCSS.cellRolloverColor, cellBackgroundColor = nonCSS.cellColor, bodyBackgroundColor = appearance.body[ "background-color" ], numRows = nonCSS.numRows, numCols = nonCSS.numCols,
+    } return iconicData
+    end, ...
+}
+Creating the Flash movie
+Your web-engine folder must include a simple Flash movie that renders the "iconic" representation of each web page. The ActionScript file that defines your movie can access the global variables provided by the flashvar entry in iconicPreview, at the top level of the _root object. 
+Your Flash movie should do these things:
+1. Set the stage behavior:
+Stage.scaleMode = "noScale"; Stage.align = "tl";
+This ensures that your preview renders without stretching or distortion.
+2. Create an external interface callback called ready, which Lightroom Classic will poll waiting for your preview to finish drawing: 
+_root.ready = 'no';
+_root.readyFunc = function(str:String) {   return _root.ready;
+}
+ExternalInterface.addCallback("ready", _root, _root.readyFunc);
+Then at a later time (usually in a subsequent frame):
+_root.ready = 'yes';
+Once your ready function returns "yes", Lightroom Classic takes a screenshot of the Flash movie and terminates its execution (in order to reduce CPU usage)
+3. Initialize default values, so that you can preview your movie without running it in Lightroom Classic.
+var numCols;
+if( _root.numCols != null ) {     numCols =parseInt( _root.numCols );
+} else {
+    // default value     numCols = 4;
+}
+Do this for each model property you are using in your preview.
+4. Draw the preview. This can be done by rearranging existing objects that you created in Flash, or simply by using the drawing primitives of the ActionScript programming language. For example:
+var cellSize = 10; for( x = 0; x < numCols; x++ ) {
+_root.beginFill( cellColor, 100 );
+
+_root.moveTo(x*cellSize, y* cellSize );
+_root.lineTo( (x+1)* cellSize, y* cellSize );
+_root.lineTo( (x+1)* cellSize, (y+1)* cellSize );
+_root.lineTo( x* cellSize,+ (y+1)* cellSize );
+_root.endFill();
+}
+This draws as many rectangle as are specified in the numCols Flash variable.
+Web SDK manifest API
+The manifest is a Lua file in your plug-inÕs root directory named manifest.lrweb. It maps LuaPage source files and template files to web-engine HTML output files using a set of commands for different kinds of pages and resource files.
+Define the mapping using these commands:
+AddPage
+Maps one source LuaPage file from the gallery template directly into the published gallery.
+AddResource AddResources
+Maps one resource file or a set of resource files from the gallery template directly into the published gallery.
+Resources can include image or icons, string dictionaries for localization, JavaScript files, and so on.
+AddPhotoPages
+Uses a LuaPage template to build a page for each photo in the current Lightroom Classic selection.
+AddGridPages
+Uses a LuaPage template to build a page for each grid of photos in the current Lightroom Classic selection.
+AddCustomCSS
+Generates a CSS file using the appearance properties of your data model. 
+IdentityPlate
+Exports an identity plate as a PNG file.
+importTags()
+Adds custom tagsets to your gallery. 
+AddPage 
+Maps one source LuaPage file from the gallery template into the published gallery. The source file is interpreted by the LuaPage engine, resulting in an HTML file in the published gallery.
+Inputs
+filename
+The path to which to write the file in the published gallery.
+template
+ The path to the source LuaPages file, relative to the folder containing this manifest.
+Example
+AddPage { filename = "content/pages/myWebPage.html", template = "myWebPage.html",
+}
+AddResource
+Maps one resource file from the gallery template directly into the published gallery. A resource is not interpreted, but is simply copied directly.
+Inputs
+source
+The path to the resource file, relative to the gallery template.
+destination
+Optional. The path to the published gallery to which to copy the resource. By default, the destination path is the same as the source path.
+Example
+AddResource { source = "image.png",
+destination = "content/resources/image.png",
+}
+AddResources
+Copies a set of resource files from the gallery template directly into the published gallery. A resource is not interpreted, but is simply copied directly.
+Inputs
+source
+The path to the resource folder, relative to the gallery template.
+destination
+Optional. The path to the published gallery to which to copy the resources. By default, the destination path is the same as the source path.
+Example
+AddResources { source = "resources", destination = "content/resources",
+}
+Alternative syntax
+Instead of passing a table of named arguments, pass a single string to be used as the source:
+AddResources "resources"
+AddPhotoPages
+Uses a LuaPage template to build a separate page for each photo in the current Lightroom Classic selection.
+Inputs
+filetype
+Optional. A file extension for the pages. Default is "html".
+variant
+Optional. A suffix to append to the file name. Useful if your gallery has several sizes of pages for each photo. Default is the empty string.
+destination
+The path to the published gallery to which to write the pages.
+template
+The path to the source LuaPage file.
+LuaPages environment variables
+When executing the LuaPages for AddPhotoPages, the following variables are defined in the environment
+filename
+The file name of the current page.
+root
+The relative path to the root of the gallery.
+gridPageLink
+If grid pages have been added to the gallery, the relative path from this page to the corresponding grid page that contains this photo.
+pageType
+The page type, "photo".
+index
+The index position of the photo within the gallery. 
+Example
+AddPhotoPages { template = 'detail.html', variant = '_large', destination = "content",
+}
+AddGridPages
+Uses a LuaPage template to build a page for each grid of photos in the current Lightroom Classic selection.
+Inputs
+filetype
+(Optional) A file extension for the pages. Default is "html".
+destination
+The path to the published gallery to which to write the pages.
+template
+The path to the source LuaPage file.
+rows
+The number of rows in each grid.
+columns
+The number of columns in each grid.
+LuaPages environment variables
+When executing a LuaPage specified with AddGridPages(), the following variables are defined in the environment
+filename
+ The file name of the current page.
+pageType
+The page type, "grid".
+page
+The position index of the current page among grid pages defined in the gallery.
+In addition, if you use AddGridPages() to add any page, all of the LuaPages in your gallery can use these environment variables:
+numGridPages
+The number of grid pages in the gallery
+filenameOfGridPage( pageNumber )
+A function that takes a grid page number and returns the file name string for that page. 
+gridPageForPhotoAtIndex( photoIndex )
+A function that take a photo index position and returns the file name for the grid page containing the photo.
+rows
+The number of rows on the grid pages.
+columns
+The number of columns on the grid pages.
+Example
+AddGridPages { destination='content', template='grid.html', rows=model.nonDynamic.numRows, columns=model.nonDynamic.numCols,
+}
+AddCustomCSS
+Generates a CSS file using the appearance properties defined in your data model. 
+When you declare your data model in the galleryInfo.lrweb file, this command exports to CSS all entries that begin with "appearance.". Inputs
+
+	filename	(string) The path and name of the output file.
+
+Example
+To specify the background color of the body using CSS, you need a declaration like this:
+/* Desired CSS output */
+body { background-color: #ff0000,
+}
+To make your web engine generate this:
+1. Declare the intention to emit CSS in the manifest file, manifest.lrweb:
+AddCustomCSS { filename='content/custom.css',
+}
+2. Define the required data model entries in the information file (galleryInfo.lrweb):
+return { ...
+model = { ...
+["appearance.body.background-color"] = "#ff0000",
+["appearance.body.cssID"] = "body", ...
+ },
+...
+}
+3. To make this something the user can edit, add a corresponding control to one of the panel descriptions in the views section of your information file (galleryInfo.lrweb): 
+return { ...
+views = { ...
+myViewFactory.label_and_color_row { bindingValue = "appearance.body.background-color", title = "Background",
+}, ...
+...
+}
+IdentityPlate
+Exports an identity plate as a PNG file, if the user chooses to use it. 
+During a Lightroom Classic preview of the web gallery, the PNG file is always generated, to support a live update of the model-defined property that controls identity-plate use. If the user chooses not to use an identity plate, however, the PNG is not exported as part of any export, upload, or preview-in-browser operation.
+Inputs
+destination
+(string) The path to the published gallery to which to write the image file.
+enabledBinding
+(string) The plug-in-defined entry in the data model that controls whether to export the identity plate. 
+Example
+The appearance section of the model defines a logo.display properties:
+["appearance.logo.cssID"] = ".logo",
+["appearance.logo.display"] = false,
+The views section of the model binds the property to the identityPlateExport checkbox (defined by the Lightroom Classic application):
+myViewFactory:identity_plate { value = bind "lightroomApplication.identityPlateExport", enabled = bind "appearance.logo.display",
+},
+In the manifest, use the IdentityPlate command to enable this binding:
+IdentityPlate { destination='content/logo.png',
+enabledBinding = [[appearance.logo.display]],
+}
+When the user selects or deselects the checkbox, this binding causes the corresponding model property (logo.display) to be set to true or false, and thus the corresponding CSS property (.logo) to be set to the correct image (logo.png), or to none. If the user does not choose to export the identity plate, the file content/logo.png is not generated on upload.
+importTags()
+Adds custom tagsets to your gallery (see ÒWeb SDK tagsetsÓ on page 138). This is a function which takes two ordered parameters:
+prefix
+(string) A short prefix used to identify tags belonging to this tagset. For example, "lr".
+tagsetPath
+(string) A path to the tagset definition file. 
+The special path "com.adobe.lightroom.default" loads the default tagset.
+Example
+1. Create a tagset file called myTags.lrweb.:
+tags = { fancyQuote = { startTag = 'write( [[<blockquote\nstyle="margin: 0 0 0 30px; '
+.. 'padding: 10px 0 0 20px; font-size: 88%; line-height: 1.5em; '
+.. 'color: #666;">]] )',
+endTag = 'write( [[</blockquote>]] )',
+}     
+}
+2. In your manifest.lrweb file, import the tagset definition file by name: importTags( "xmpl", "myTags.lrweb" )
+3. Use that tagset in any LuaPages file, identifying each defined tag with the specified prefix:
+<xmpl:fancyQuote>
+A wise man once said:<br>
+Don't count your chickens before they're hatched
+</xmpl:fancyQuote>
+4. This results in the following in the HTML output:
+<blockquote style="margin: 0 0 0 30px; padding: 10px 0 0 20px; font-size: 88%; line-height: 1.5em; color: #666;">
+A wise man once said:<br>
+Don't count your chickens before they're hatched
+</blockquote>
+
+LuaPage syntax
+LuaPage syntax
+A LuaPage is a Lua-language source file that is evaluated to produce one destination web page in your published gallery. In the manifest, use the AddPage command to map each source LuaPage to a destination file location.
+Environment variables available to LuaPages
+A LuaPage is evaluated in a context that provides many of the Lua functions of a default Lua installation, and also some special functions that are specific to the web photo gallery templating language.
+These read-only variables are available:
+Variable
+Description
+getImage(imageIndex)
+A function that returns an imageProxy.
+mode
+¥ When the gallery is being previewed inside Lightroom Classic, the value is the string "preview". 
+¥ During export, upload or preview in browser, it is set to "publish".
+numImages
+The number of photos in the gallery.
+string math
+Standard Lua namespaces.
+table
+A subset of the default Lua table namespace; contains the insert function.
+ipairs pairs type tostring
+Standard Lua functions
+LOC
+Text values can be localized. Use this function as a string value in order to specify a string by a unique identifier; your plug-in must provide a string dictionary in which to look up the display-string value for the current system language. See ÒLocalizing the UIÓ on page 126."
+	LrTagFuncs 	A table of private helper functions for the lr: tags
+LuaPage syntax
+Variable
+Description
+includeFile() 
+An execution-time function that allows a page to include another file using runtime logic to specify which file. For example:
+<html> 
+ <body>
+  <h1>My web gallery</h1>
+   This is the grid.html file.
+   <BR>
+   Include a file using the include directive:
+   <%@ include file="subdir/foo.html" %>
+   <BR>
+   Include same file using the includeFile command:
+   <% includeFile( 'subdir/foo.html' ) %>
+   <BR>
+   Include a file that includes another file: 
+   <% includeFile( 'file1.html' ) %>
+ </body> 
+</html>
+LuaPage data types
+These data types are defined:
+imageProxy
+An object that has these properties:
+exportFilename
+(string) The base name string of a JPEG that will be written to disk for this photo.
+rating
+(number) The numeric rating for the image, or nil if it has no rating
+imageID 
+(string) The id_global string for this image.
+renditions
+(array of object) An array of imageRendition objects for the renditions of this photo.
+metadata
+(table) A table of metadata settings, based on the perImage settings.
+colorLabel
+(string) The localized text for a photoÕs colorLabel, such as "red", or nil.
+
+
+imageRendition
+An object that represents an image rendition for a photo. It has these properties:
+width 
+(number) The width in pixels.
+height
+(number) The height in pixels.
+relPath
+(array of string) An array of directory names, in which the last entry is the file name.
+	dir	(array of string) An array of directory names.
+cropMode
+How to size the image. One of:
+minimum Ñ Fits the image within thephotoSize dimensions. maximum Ñ Scales the image to be at least as big as both photoSize dimensions.
+metadataExportMode
+How to export metadata. One of:
+copyright Ñ Export only copyright information. This is equivalent to the "Minimize Metadata" option in the Export dialog all Ñ Export all metadata.
+Web SDK tagsets
+A tagset is an external file containing macro-like definitions that can be loaded by your web pages. These are similar to JSP Tag Libraries, but simpler. They allow you to extract common content and logic that appears on multiple pages into a custom set of tags. Once defined and imported, you can use the tags just like regular HTML tags. 
+At run time, your LuaPage, replaces the tag with its Lua-language tag definition, which it then compiles and executes to product the HTML output.
+There is built-in set of tags included with the Lightroom Classic SDK, which you can also include and use in your LuaPages.
+Defining custom tags
+To define a tagset in Lua, specify a tags table. This is a table of tables, where each element table defines one tag. The first element is the tagÕs unique name, and the value is a table containing a startTag and endTag element:
+tags = {     tagName = {         startTag = "macroCode",         endTag = "macroCode",
+    }, }
+The value of the startTag and endTag element is a string containing Lua code. It can use global functions and constants defined in the same page using a globals table. This is again a table in which each element defines one function or constant:
+globals = {     functionName = function( x )         _body of function_     end, }
+When the LuaPage is evaluated, the code for each tag is evaluated, and the result is substituted for the opening or closing named tag. 
+For example, you could define code in this format in your tagset file:
+globals = { myOpenTagFunction = function( )
+--body of function
+
+end,
+myCloseTagFunction = function( )
+        --body of function end, }
+tags = { myTag = { startTag = "myOpenTagFunction()", endTag = "myCloseTagFunction()",
+}
+}
+If you import this tag into the xmpl namespace, your LuaPage would reference the tag like this:
+<xmpl:myTag>Helloworld</xmpl:myTag>
+At run time, when the LuaPage is evaluated, the tags are replaced with the Lua code, and the contents is simply written out: myOpenTagFunction() write( [[Helloworld]] ) myCloseTagFunction() This code is then evaluated to produce the final HTML for your web gallery page.
+Using custom tags
+To use a tagset that you have defined in your web-engine plug-in:
+1. Include the tagset definition file or files in the root directory of your web engine. 
+2. Add a line to import the tagset in your manifest.lrweb file: importTags( "lr", "pathToTagsetFile" )
+This includes all of the tags defined in the file under the namespace lr. The namespace definition prevents conflicts with tags of the same name defined in other tagset libraries. You can use any namespace for your own tags.
+3. To load the built-in default tagset, substitute the special value "com.adobe.lightroom.default" for the path: importTags( "lr", "com.adobe.lightroom.default" )
+By convention, the built-in tags are imported into the lr namespace.
+4. To use the defined tags in your LuaPages, use the namespace prefix for both the opening and closing tag. For example:
+<lr:ThumbnailGrid>...</lr:ThumbnailGrid>
+Custom tag example
+Here is an example that simply wraps some constant text around the text specified as the content of the tag:
+1. Define the tag and its supporting function in the tagset file, myTags.lua:
+globals = {     myFn = function( x )         write( "You said, \"" )         x()         write( "!\"" )     end, } tags = {     exclaim { 
+        startTag = "myFn( function()",         endTag = "end )",
+    } }
+2. Use the importTags() command in your web SDK manifest (manifest.lrweb) to import this into the "xmpl" namespace: importTags( "xmpl", "myTags.lua" ) 
+3. Reference the tag in a LuaPage source file:
+<xmpl:exclaim>Helloworld</xmpl:exclaim>
+4. When the LuaPage file is converted into Lua code, this becomes:
+myFn( function() write( [[Helloworld]] ) end )
+5. When the Lua code is executed, this produces text as its HTML output:
+You said, "Helloworld!"
+Lightroom Classic built-in tagset
+Lightroom Classic includes a default set of tags, defined in the "com.adobe.lightroom.default" tagset.
+This tagset is typically imported into the lr: tagset namespace, but you can import it into any namespace using the importTags() command of your web SDK manifest. As for all imported tags, you must reference each opening and closing tag name with the namespace prefix. For example:
+<lr:ThumbnailGrid> ...
+</lr:ThumbnailGrid>
+The built-in tagset defines two groups of tags, for building thumbnail grids, and for defining navigation properties of a multi-page gallery.
+Thumbnail grid tags
+Use these tags to build a grid. This set of tags simplifies assembly of repeating units based on rows, columns, and the photo selection. You can use these tags only on pages that you specify in the manifest with AddGridPages.
+The ThumbnailGrid tag is a container for the other tags, which define cells within the grid. For example:
+<lr:ThumbnailGrid>
+<lr:GridPhotoCell>
+    <img src="thumbs/<%= image.exportFilename %>.jpg" > </lr:GridPhotoCell>
+</lr:ThumbnailGrid>
+This defines a simple grid with only one cell, which displays a photo from the referenced file. It uses a variable, image, which is evaluated at run time as a reference to the currently selected photo.
+The following local variables are available in the context of the ThumbnailGrid tag: 
+
+Variables available for grids 
+cellIndex
+Contains the 1-based index for the current cell in the grid.
+row
+Contains the 1-based row number for the current cell.
+column
+Contains the 1-based column number for the current cell.
+image
+Contains the image proxy. This is a complex data type defined within the LuaPage environment; see ÒLuaPage data typesÓ on page 137. 
+The following grid tags are defined:
+Grid tags
+
+ThumbnailGrid
+Provides the definition of a thumbnail grid for pages in your gallery. Contains the remaining tags as children.
+GridPhotoCell
+Defines content to be repeated for each cell. Contained in a ThumbnailGrid tag; for example:
+<lr:ThumbnailGrid>
+  <lr:GridPhotoCell>
+   <img src=
+      "$mypath/thumb/<%= image.exportFilename %>.jpg"       id="<%= image.imageID %>" class="thumb" />
+  </lr:GridPhotoCell>
+</lr:ThumbnailGrid>
+GridEmptyCell
+Optional. Defines an empty cell in the grid.
+GridRowEnd
+Optional. Defines content to be placed at the end of each row.
+GridRowStart
+Optional. Defines content to be placed at the start of each row.
+Pagination tags
+This set of tags can be used to add page navigation buttons to your HTML pages. Predefined page-navigation buttons include one for the current page, one for direct access to other pages, and ones for the next and previous page, which can be disabled for the first and last pages. You can associate your own text or destination with each type of button. For example:
+<% if numGridPages > 1 then %>
+<div class="pagination">
+<ul>
+<lr:Pagination>
+<lr:CurrentPage>
+<li>$page</li>
+</lr:CurrentPage>
+<lr:OtherPages>
+<li><a href="$link">$page</a></li>
+
+</lr:OtherPages>
+<lr:PreviousEnabled>
+<li><a href="$link">Previous</a></li>
+</lr:PreviousEnabled>
+<lr:PreviousDisabled> <li>Previous</li>
+</lr:PreviousDisabled>
+<lr:NextEnabled>
+<li><a href="$link">Next</a></li>
+</lr:NextEnabled>
+<lr:NextDisabled> <li>Next</li>
+</lr:NextDisabled>
+</lr:Pagination>
+</ul>
+</div>
+<% end %>
+The following local variables are available in the context of the Pagination tag: 
+
+Variables available for pagination
+
+	page	Contains the appropriate page number. 
+¥ Within a CurrentPage tag, this is the current page number. 
+¥ Within an OtherPages tag, this is the number of the corresponding page.
+
+link Contains the URL to an appropriate page for a navigation button. For example, within a PreviousEnabled tag, the URL of the previous page.
+
+The following pagination tags are defined:
+Pagination tags
+
+Pagination
+Provides the definition of pagination properties for pages in your gallery. Contains the remaining tags as children.
+CurrentPage
+Defines an icon or text for the current page.
+OtherPages
+Defines an icon or value with which to navigate directly to other pages.
+PreviousEnabled
+Defines an icon or value with which to navigate to the previous page.
+PreviousDisabled
+Defines an icon or value for the previous-page button for the first page (the case in which there is no pervious page).
+NextEnabled
+Defines an icon or value with which to navigate to the next page.
+NextDisabled
+Defines an icon or value for the next-page button for the last page (the case in which there is no next page).
+Web HTML Live Update
+When you preview your web gallery in Lightroom Classic, Lightroom Classic opens a web browser which runs independently of the main application. If, during the preview, you make changes to the gallery parameters, Lightroom Classic must communicate with the web browser in order to reflect those changes.
+While a page from your gallery is being previewed in Lightroom Classic, a user might change a model variable using the control panel. In order to reflect the change in the previewed page, the Lightroom Classic browser normally needs to reload the page. Lightroom Classic clears all cached copies of the page, tells the browser to reload, and builds new HTML and CSS files in response to the browserÕs reload request. This process is time consuming, and can cause changes in color or other visually startling changes as the page loads. For a change as simple as a nudge in hue of a color slider, you might find this response unacceptably jarring. 
+Live Update is intended to avoid browser reload, which disrupts the user experience. Live Update is a mechanism by which a web engine can intercept and prevent the reload operation, using DHTML/AJAX scripting techniques to alter the web page in place. DHTML/AJAX use JavaScript, which is executed in the context of the built-in web browser (rather than the Lua scripting environment of Lightroom Classic in general).
+An HTML page in your web engine can incorporate JavaScript that uses Live Update to interact with Lightroom Classic during a preview. This communication operates in both directions:
+¥ Lightroom Classic sends messages to the page, making liveUpdate() JavaScript function calls into the page whenever the user alters a parameter in the gallery data model. If the call is successful, Lightroom Classic does not request a page reload.
+¥ The page contains JavaScript that sends messages back to Lightroom Classic in response to user events, such as a request for a text field edit, or to override a data model value.
+In order to enable this functionality, your plug-in must contain JavaScript implementations of the liveUpdate() functions and the event-handler callbacks. There is a sample implementation in the file live_update.js, which you can use or modify. It is part of the sample plug-ins provided with the SDK.
+To include the JavaScript file that implements Live Update in your pages, use a line such as this in your header.html template file:
+<script type="text/javascript" src="$theRoot/resources/js/live_update.js">
+Defining messages from Lightroom Classic to a previewed page
+To implement a message from Lightroom Classic to your HTML web gallery, you define JavaScript live-update functions as properties of the JavaScript document object. There are two kinds of live update messages for different kinds of live update operations: 
+¥ The document.liveUpdate function handles changes that involve gallery appearance (such as CSS properties) and text labels
+¥ The document.liveUpdateImageSize function handles changes that involve gallery image size. 
+Implementation of either of these functions is optional. For simple galleries, the reload solution may be adequate. If you do not add any Live Update functions to your document object, Lightroom Classic uses the default reload behavior.
+Returning values from live-update functions
+When a change affects a page that the browser has previously cached, Lightroom Classic must ensure that the browser reloads that page, rather than displaying the cached version. Lightroom Classic also maintains a cache, which may need to be cleared. Your live-update function signals Lightroom Classic about what behavior to use by returning one of these strings:
+¥ invalidateOldHTML: The browser cache is cleared, and all of the HTML pages in Lightroom Classic's page cache are cleared. The exported JPEGs remain unchanged. The reload is deferred until the user navigates away from the currently previewed page.
+Return this value if the update is successful, and the change affects only the current HTML page
+¥ invalidateAllContent: The browser cache is cleared, and all of Lightroom Classic's page caches (both HTML and resource files) are cleared. The exported JPEGs remain unchanged. The reload is deferred until the user navigates away from the currently previewed page.
+Return this value if the update is successful, and the change affects any referenced file, such as a JavaScript or CSS file. This is typically the default case.
+¥ failed (or any other return, or throwing an exception): Causes immediate reload, and clearing of both browser and Lightroom Classic page caches. The exported JPEGs remain unchanged.
+Return this value if your function is unable to update the page. Lightroom Classic then commands the embedded browser to reload the original page.
+document.liveUpdate
+Your HTML gallery can implement this function to respond to a change made in Lightroom Classic to the appearance (CSS styling), or a Lightroom Classic update to the fixed strings for the gallery. (Do not use it for changes to strings associated with a particular image, such as the image name or other metadata; a change of this kind always causes a reload.) 
+Your function manipulates the web page objects using JavaScript calls; typically, it locates the document node and alters the page appearance or content to reflect the change made to the data values. The function should return a result that indicates whether the update was successful.
+The prototype is:
+document.liveUpdate = function( path, newValue, cssId, property ) {     var result = "failed";
+    // JavaScript implementation goes here return result;
+}
+path
+A dot-separated path to the node in the appearance portion of your galleryInfo.lrweb file.
+newValue
+The new value (such as "ffffff" for the color white). 
+cssId
+The corresponding cssId for the node (such as 'body').
+property
+The CSS property that is changing on this node (such as 'margin').
+document.liveUpdateImageSize
+Implement a separate function for live update of image size. This function is called repeatedly while the mouse is held down on the image size slider. As soon as the mouse is released, a full reload of the page occurs, flushing all caches and invalidating all JPEGs.
+This function must locate the image using document.getElementById(), and set its dimensions using appropriate DOM methods. The function has this prototype:
+document.liveUpdateImageSize = function( imageID, width, height ) {
+// your code here 
+return "invalidateAllContent";
+}
+imageID
+The unique identifier of the image.
+width
+The new image width in pixels.
+height
+The new image height in pixels.
+If unable to perform the live update, return "failed". In this case, Lightroom Classic reloads the browser as often as it can while the mouse is dragged. 
+Example live-update implementation
+The Lightroom Classic SDK includes the source code for the default HTML web engine, which includes an example implementation of document.liveUpdate() in the file live_update.js. To include this file in your project, you must construct your data model to match the names used in the JavaScript. 
+¥ For any gallery text fields, you must place an id attribute on the immediately enclosing element. 
+¥ The id value must match the dot-separated path to the corresponding model value defined in the galleryInfo.lrweb file.
+For example, in the default HTML gallery, the site title is in an h1 element. In the template source file it looks like this:
+<h1 onclick="clickTarget( this, 'siteTitle.text' ); " id="metadata.siteTitle.value" class="textColor">
+$model.metadata.siteTitle.value
+</h1>
+Notice that the id is the same as the path in the model definition in the galleryInfo.lrweb file:
+["metadata.siteTitle.value"] = "Site Title",
+NOTE: This example implementation issues a reload for compound cssID values, such as "#myId.myClass". Create unique classes for such cases to avoid the reload.
+Defining messages from a previewed page to Lightroom Classic 
+Lightroom Classic provides a callback mechanism whereby JavaScript code running in the previewed page can communicate with Lightroom Classic. The implementation differs slightly in macOS and in Windows, but the example live_update.js implements a wrapper function which hides this difference. This discussion assumes that you are including live_update.js in your web-engine folder. 
+To call from JavaScript into Lightroom Classic, invoke the callCallback() function defined in live_update.js, using this syntax: callCallback( "callback_name", param1, param2, ... );
+For example, to call the in-place-edit callback defined in the sample implementation, the JavaScript makes this call:
+callCallback( 'inPlaceEdit', target, bounds.x, bounds.y, bounds.width, bounds.height, font.fontFamily, font.fontSize, imageID )
+Lightroom Classic provides these callback functions that can be invoked from JavaScript using callCallback(): 
+showInPhotoBin = function( id )
+Reveals a photo in the filmstrip whose id_global value matches the given id value.
+setActiveImageSize = function( size )
+Tells Lightroom Classic which of the sizes is currently being displayed on screen. Use the same string labels that you provided in the photoSizes section of the galleryInfo.lrweb file.
+inPlaceEdit = function( target, x, y, width, height, fontFamily, fontSize )
+Edits a text field at given coordinates on the screen. See ÒSpecifying in-place editÓ on page 146.
+updateModel = function( key, value )
+Alters the data model for the given dot-separated key path.
+fetchURL = function( url, callbackName ) Downloads the contents of a given URL and returns it 
+as a string. This is an asynchronous operation.When the operation is complete, the result string is passed to the callback.
+Implement the referenced callback function in the document object. 
+
+Specifying in-place edit
+Your JavaScript code can call inPlaceEdit() directly, using callCallback(). You must provide these arguments:
+target
+string
+The dot-path identifier of a metadata property defined in your model, such as "metadata.siteTitle.value"
+x, y width, height
+number
+The bounds of the element on the web page, in pixels. These coordinates are used to position the edit text window that is temporarily superimposed on the web page.
+fontFamily
+string
+The font family to use for the edit.
+fontSize
+number
+The font point size.
+The JavaScript file live_update.js also provides an easier way to implement in-place edit, by using the clickTarget() function. This function gets the bounds and font information for a particular node in the page DOM, and uses it to call the inPlaceEdit() function.
+You can add in-place editing functionality to any node containing text by adding code like this to your HTML: onclick="clickTarget( this, 'target_property' );" For example:
+<p onclick="clickTarget( this, 'metadata.groupDescription.value' );" id="metadata.groupDescription.value" class="textColor">
+$model.metadata.groupDescription.value </p>
+Notice that the target ID sent to clickTarget(), the ID for the node, and the path in the $model variable all match.

@@ -1,0 +1,288 @@
+2	Writing a Lightroom Classic Plug-in
+The Lightroom Classic SDK allows you to create plug-ins that customize the behavior of Lightroom Classic in specific ways. Most types of plug-in share a common architecture, which is discussed in this chapter.
+	¥	Web Gallery plug-ins use a different architecture; see Chapter 6, ÒWriting a Web-engine Plug-in.Ó
+The Plug-in Manager dialog allows a user to load plug-ins from any location, enable and disable loaded plug-ins, and remove unused plug-ins. Your plug-in can customize the dialog by adding sections. See ÒCustomizing plug-in load behaviorÓ on page 32.
+Writing standard plug-ins for Lightroom Classic
+The Lightroom Classic SDK allows you to customize the behavior of Lightroom Classic in specific ways using a standard plug-in (as opposed to a web-engine plug-in). The behavior implemented by your plug-in is provided by one or more Lua scripts. An information file installed in a standard plug-in folder identifies your plug-in scripts to Lightroom Classic, and associates the plug-in with a unique name.
+¥ You can add items to the File, Library, or Help menus to start an operation. 
+¥ Your plug-in can add a new export or publish destination with an Export Service Provider or Publish Service Provider. Such a service can also customize the Export or Publishing Manager dialog by adding and removing sections as appropriate for the destination when the user selects it. See ÒCreating an export or publish serviceÓ on page 36. 
+¥ Your plug-in can intercept the export process with an Export Filter Provider, which can apply further processing to photos that the user has chosen to export. The post-process action that a filter defines is applied after Lightroom ClassicÕs initial rendering, and before the photos are sent to the final destination. Each filter can add a section to the Export dialog, in which the user can select options and set parameters. See ÒAdding an export post-process actionÓ on page 42.
+¥ In addition to or instead of defining export customizations, your plug-in can define custom metadata fields for Lightroom Classic. See Chapter 4, ÒWorking with Metadata."
+Declaring the contents of a plug-in
+In addition to the Lua script or scripts that define your extension to Lightroom Classic functionality, your plug-in must contain a file named Info.lua that describes the plug-in to Lightroom Classic, using a Lua table of descriptive items. The table can or must include these items:
+
+	LrSdkVersion	Required	The preferred version of the Lightroom Classic SDK for this 
+plug-in. Should be set to latest version of Lightroom Classic 
+	number	SDK for the current release; older plug-ins may have a value 
+of 1.3, 1.4, 2.0, 3.0, 4.0, 5.0, etc.
+     22
+LrSdkMinimumVersion
+Optional number
+The minimum version of the SDK that this plug-in can use. If your plug-in works with Lightroom Classic 8.0, 9.0,or 10.0 but it also provides new features specific to Lightroom Classic 11.0, set this value to 8.0 and LrSdkVersion to 11.0. 
+Default is the value of LrSdkVersion.
+LrToolkitIdentifier
+Required string
+A string that uniquely identifies your plug-in. Use 
+Java-style package names (your domain name in reversed sequence).
+You can use the Plug-in Manager to add multiple plug-ins with the same identifier, but only one of them can be enabled. If you enable one, any other plug-in that shares the same plug-in ID is automatically disabled.
+Note that com.adobe.*, which is used in the examples, is reserved for plug-ins written by Adobe; your own plug-ins will use your own domain name (com.myCompany.*).
+LrPluginName
+Required for 2.0 or 
+newer
+string
+A localizable string for the plug-inÕs display name, which appears in the Plug-in Manager dialog. Required for SDK version 2.0 or newer; ignored by earlier versions.
+If a plug-in defined for an earlier version is loaded in Lightroom 2.0 or newer, the Plug-in Manager displays the title of the first Export Service Provider, or if no Export Service Provider is defined, the base name of the plug-in folder.
+LrPluginInfoProvider
+Optional string
+The name of the Lua file (service definition script) to be executed when the plug-in is loaded. This script can define functions that run when plug-in is selected or deselected in the Plug-in Manager dialog, and can add sections to the Plug-in Manager dialog that are shown when the plug-in is selected. It See ÒCustomizing plug-in load behaviorÓ on page 32.
+Ignored in any Lightroom version older than 2.0.
+LrInitPlugin
+Optional string
+The name of a Lua script that is loaded and executed when your plug-in is loaded or reloaded. See ÒCustomizing plug-in load behaviorÓ on page 32
+This item is ignored if LrSdkVersion is less than 2.0.
+LrForceInitPlugin	Optional	When true, forces the initialization script to run at application startup, even for plug-ins that do not provide 
+Boolean	export or publish services or define custom metadata, as long as the plug-in contributes at least a menu item.
+Otherwise, the initialization script does not run until the plug-inÕs first use.
+Ignored in any Lightroom version older than 4.0.
+LrPluginInfoUrl
+Optional string
+The URL of your web site, or a page that provides information about your plug-in. See ÒCustomizing plug-in load behaviorÓ on page 32
+Ignored in any Lightroom version older than 2.0. 
+LrShutdownPlugin
+Optional string
+The name of a Lua script that is loaded and executed when the user unloads this plug-in. 
+This script is executed only if the user loaded or reloaded the plug-in through the Plug-in Manager dialog, or approved updating of the catalog structure, during the current Lightroom Classic session.
+Ignored in any Lightroom version older than 3.0.
+LrShutdownApp
+Optional string
+The name of a Lua script that is loaded and executed when Lightroom Classic is shutting down. See ÒApplication termination scriptÓ on page 28.
+This item is ignored if LrSdkVersion is less than 4.0.
+LrEnablePlugin
+Optional string
+The name of a Lua script that is called when the user enables this plug-in from the Plug-in Manager dialog.
+Ignored in any Lightroom version older than 3.0.
+LrDisablePlugin	Optional	The name of a Lua script that is called when the user disables this plug-in from the Plug-in Manager dialog.
+string
+Ignored in any Lightroom version older than 3.0.
+VERSION
+Optional table
+Allows you to provide a version number for your plug-in that is displayed in the Plug-in Manager dialog. The version 
+number is for your own use, and need not relate to Lightroom Classic's version number.
+The table has these members:
+major (number) minor (number ) revision (number) build (string) display (string)
+The numeric values are assembled in order to create a version designation in the default format: 
+major.minor.revision.build
+The build value is omitted if zero; both revision and build are omitted if both are zero. 
+If you prefer to display a version number in a different format, include the display string in the display field. You can use LOC to localize the string; see ÒThe LOC functionÓ on page 150.
+Ignored in any Lightroom version older than 2.0. 
+LrExportMenuItems 
+LrLibraryMenuItems
+LrHelpMenuItems
+Optional table of tables
+These allow you to add new script-defined menu items to the Plug-in Extras submenus that appear in Lightroom ClassicÕs File, Library, and Help menus. 
+For details of the member tables, see ÒDefining menu items for a plug-inÓ on page 34:
+LrExportFilterProvider
+Optional table of tables
+Adds one or more new export filters, which can process photos before they are rendered for the export destination.
+Each item is a table with these entries:
+title (string): The display name of the filter.
+file (string): The name of the Lua file (filter definition script) to be executed when the filter is chosen. See ÒAdding an export post-process actionÓ on page 42. id (string): A unique identifying string for this filter.
+requiresFilter (string, optional): The identifier for another filter that must be used with this one. 
+Can be combined with other services (export services, custom metadata) or can be the only service provided by the plug-in. 
+Ignored in any Lightroom version older than 2.0. 
+URLHandler
+Optional string
+Optional. The name of a file that provides custom URL handling. The file must return a table that contains a 'URLHandler' entry. This must be a function that takes a URL as a parameter.
+Lightroom Classic is configured to be the registered receiver of URLs starting with 'lightroom://'. When it receives such a URL, it checks registered handlers to find an appropriate one. For example, the plug-in with the ID 'my.plugin.id' can register a handler for URLs starting with 'lightroom://my.plugin.id'.
+Ignored in any Lightroom version older than 4.0. 
+LrExportServiceProvider
+Optional table of tables
+Adds one or more new export destinations or publish service providers.
+Each item is a table with these entries:
+title (string): The display name of this export destination.
+file (string): The name of the Lua file (service definition script) to be executed when the export destination or publish service is chosen. See ÒDefining an export serviceÓ on page 36.
+builtInPresetsDir (string, optional): The name of a subdirectory in the plug-in directory that contains predefined export settings values. This must be a simple folder name; it cannot contain any path-significant characters, such as slashes.
+Lightroom Classic preset files are identified by the 
+.lrtemplate extension. (Publish services are not associated with presets.)
+id (string, optional): A unique identifier for this export service. If none is provided, a simple consecutive number value (1, 2, 3...) is assigned.
+Can be combined with other services (export filters, custom metadata) or can be the only service provided by the plug-in. 
+	LrMetadataProvider	Optional	Adds custom metadata fields, available only in Lightroom 
+Classic. There can be only one such item in a plug-in. It 
+table of contains a string, the name of the Lua file (metadata tables definition script) that defines the fields. See ÒAdding custom metadataÓ on page 70.
+Can be combined with other services (export services, export filters) or can be the only service provided by the plug-in. 
+Ignored in any Lightroom version older than 2.0.
+LrMetadataTagsetFactory
+Optional table of tables
+Adds a tagset of predefined metadata fields. The user can select defined metadata tagsets from a menu in the Metadata panel. Some tagsets are supplied by Lightroom Classic; this allows your plug-in to supply additional tagsets. See ÒAdding custom metadata tagsetsÓ on page 75.
+Ignored in any Lightroom version older than 2.0.
+LrAlsoUseBuiltInTranslations
+Optional 
+Boolean
+Controls behavior of built-in LOC function. When true, strings that are not found in the plug-inÕs translation file are checked against Lightroom ClassicÕs translation file for the current language.
+Note that string keys are not guaranteed to remain the same across version releases.
+Ignored in any Lightroom version older than 3.0.
+LrLimitNumberOfTempRenditions
+Optional 
+Boolean
+Controls whether Lightroom Classic will throttle the number of temporary image files on disk waiting for the plug-inÕs processing during export. The intent of this option is to allow protection against high disk space consumption during large exports.
+If true, the plug-in is expected to remove the temporary rendition files when it is done with them.
+Ignored in any Lightroom version older than 5.0.
+The loader environment
+The Info.lua file is a special Lua environment that is much more restrictive than the general SDK Lua environment in which other scripts run. 
+¥ The standard Lua namespace string is available, and you can use the LOC function for localization of display strings in this file (see Chapter 7, ÒUsing ZStrings for LocalizationÒ).
+¥ You can use WIN_ENV and MAC_ENV environment variables, and the _VERSION variable that contains most of the version information otherwise available through LrApplication.versionTable().
+However, you cannot use any of the other Lua or Lightroom Classic globals defined in the SDK scripting environment, (see ÒThe Lightroom Classic SDK scripting environmentÓ on page 11). For example, you cannot use import or require in this context.
+Here is an example of an Info.lua file for a plug-in that adds items to the Lightroom Classic menus:
+return {
+LrSdkVersion = 5.0,
+LrSdkMinimumVersion = 1.3, -- minimum SDK version required by this plug-in
+LrToolkitIdentifier = 'com.adobe.lightroom.sdk.helloworld', LrPluginName = LOC "$$$/HelloWorld/PluginName=Hello World Sample",
+-- Add the menu item to the File menu.
+LrExportMenuItems = { title = "Hello World Dialog", file = "ExportMenuItem.lua",
+},
+-- Add the menu item to the Library menu.
+LrLibraryMenuItems = {
+    {     title = LOC "$$$/HelloWorld/CustomDialog=Hello World Custom Dialog",     file = "ShowCustomDialog.lua",
+}, {
+    title = LOC "$$$/HelloWorld/MultiBind=Hello world Custom Dialog with 
+MultipleBind",     file = "CustomDialogWithMultipleBind.lua",
+}, {
+    title = LOC "$$$/HelloWorld/RadioButtons=Hello world RadioButtons",     file = "RadioButtons.lua",
+}, {
+    title = LOC "$$$/HelloWorld/DialogObserver=Hello world Custom Dialog with 
+Observer",     file = "CustomDialogWithObserver.lua", },
+},
+    VERSION = { major=11, minor=3, revision=0, build="YYYYMMDDHHmm-abcd1234", }, }
+You can find more examples in the sample plug-ins provided with the SDK.
+Application termination script
+LrShutdownApp specifies a script that is called at application shutdown time. This script must return a table that contains an LrShutdownFunction member; this function takes two arguments, doneFunction and progressFunction, in that order. 
+¥ The doneFunction takes no arguments; it is called when the plug-in's shutdown tasks have been completed (which allows the plug-in's shutdown operation to use asynchronous tasks). 
+¥ The progressFunction is invoked to report progress during the execution of the plug-in's shutdown tasks. This function takes two arguments, percent complete (number between 0 and 1) and a descriptive display string for the progress dialog. It must return a Boolean value, true if the user clicks Cancel in the progress dialog.
+If 10 seconds pass without progress being reported by a call to the progressFunction, the shutdown task is assumed hung or terminated, and application shutdown proceeds. The plug-in shutdown must monitor this status and respond appropriately to it.
+The LrDialogs namespace is not available in the environment of the shutdown task.
+Delivering a standard plug-in
+Package your Lua files (the information file, Info.lua, and all Lua scripts) in a single folder with a suffix of .lrplugin; for example, MyPluginName.lrplugin.
+NOTE: In macOS, the suffix .lrplugin creates a package, which looks like a single file. For convenience, you can use the suffix .lrdevplugin during development, and change the extension to .lrplugin for delivery. The .lrdevplugin suffix is recognized by Lightroom Classic but does not trigger the package behavior in the macOS Finder.
+A plug-in folder can reside in any location on the hard drive. Users can load the plug-in using the Add button in the Plug-in Manager. Once it is added, users can enable or disable it through the dialog, reload it using the Plug-in Author Tools in the dialog, or unload it using the Remove button.
+The standard Plug-in Manager dialog in Lightroom Classic looks like this:
+
+Your plug-in can customize the Plug-in Manager, adding sections that appear when a user selects your plug-in in the dialog. For example, in the following figure, the plug-in called ÒPlug-in Info SampleÓ defines two custom sections, one above and one below the Lightroom Classic-defined sections. They appear only when the plug-in is selected in the list. The sections are collapsible, and you can define a descriptive string (a synopsis) to appear on the right side when the section is closed. 
+
+For details of how to define these sections, see See ÒAdding custom sections to the Plug-in ManagerÓ on page 33.
+Automatic plug-in loading
+Lightroom Classic automatically checks for plug-ins in the standard Modules folder where other Lightroom Classic settings are stored:
+In macOS (current user)
+~/Library/Application Support/Adobe/Lightroom/Modules 
+In macOS (all users)
+/Library/Application Support/Adobe/Lightroom/Modules 
+In Windows XP
+C:\Documents and Users\username\Application Data\Adobe\Lightroom\Modules
+In Windows 
+7/Vista/8/10/11
+C:\Users\username\AppData\Roaming\Adobe\Lightroom\Modules
+You may want to use this location if, for example, you are writing an installer that installs a Lightroom Classic plug-in and also installs a helper application.
+Plug-ins that are installed in this location are automatically listed in the Plug-in Manager dialog. You can use the dialog to enable or disable such a plug-in, but not to remove it. The Remove button is dimmed when such a plug-in is selected.
+Debugging standard plug-ins
+The Plug-in Manager also provides access to tools for plug-in authors. 
+
+This section is generally not needed by end users, and is closed by default. If you open the "Plug-in Author Tools" section, you can:
+¥ Reload a plug-in after you make code changes. 
+¥ Choose to have Lightroom Classic reload the plug-in automatically on each export or publish operation.
+NOTE: Reloading a plug-in interactively or automatically after export does not reload any localization dictionaries supplied with that plug-in. The translation dictionaries are read only when the plug-in is first loaded or Lightroom Classic is restarted. See Chapter 7, ÒUsing ZStrings for Localization.Ó
+¥ Choose a file to which to save diagnostic messages if a plug-in fails to load, or encounters an error at any stage of its operation. 
+The Lightroom Classic SDK does not supply a development environment in which to debug your plug-ins, but it does supply the LrLogger namespace, which allows you to configure a log file and viewer for trace information of various kinds, and add tracing statements to your scripts. For an example, see ÒDebugging your plug-inÓ on page 187.
+Finding deprecated calls
+You can add a debugging flag to your configuration file (config.lua) to help you find occurrences of calls to deprecated functionality in your plug-in. 
+sdkDeprecation.action=throw|log
+When you specify the action throw, Lightroom Classic throws an exception each time a deprecated call is executed. 
+To write deprecated call occurrences to a file, you must specify the action log, and also define this logger in your config.lua file:
+loggers.AgSdkDeprecation = { logLevel = "info", action = "logfile",
+}
+Lightroom Classic writes log message to this file:
+¥ (Windows) <user_home>\My Documents\AgSdkDeprecation.log
+¥ (macOS) ~/Documents/AgSdkDeprecation.log.
+
+Customizing plug-in load behavior
+Customizing plug-in load behavior
+You can customize your plug-inÕs behavior when it is loaded or selected in the Plug-in Manager dialog. To do this, the Info.lua file for your plug-in can include these entries:
+¥ LrPluginInfoProvider points to a script that can return any or all of the following function definitions which customize appearance or behavior of the Plug-in Manager dialog when the plug-in is selected:
+Item
+Description
+startDialog endDialog
+Initialization and termination functions that run when your plug-in is selected or deselected in the Plug-in Manager dialog.
+The same items are defined slightly differently in an Export Service 
+Provider to run when the service is selected or deselected in the Export dialog; see ÒInitialization and termination functions for the Plug-in ManagerÓ on page 33.
+sectionsForTopOfDialog sectionsForBottomOfDialog
+Definitions for one or more new sections to display in the Plug-in Manager dialog when your plug-in is selected in the dialog. 
+The same items can be defined in an Export Service Provider or Export Filter Provider to customize the Export dialog when the service or filter is selected or deselected there; see ÒAdding custom sections to the Plug-in ManagerÓ on page 33 for details.
+¥ LrInitPlugin points to a script that runs when the plug-in is loaded or reloaded. You can use this to initialize values in your plug-inÕs global function environment, which are protected from garbage collection. When the plug-in is reloaded, a new environment is created. All previous values are discarded and this function is executed again.
+¥ LrShutdownPlugin and LrShutdownApp point to scripts that allow you to control the termination procedure for your plug-in, specified by LrShutdownPlugin and LrShutdownApp.. You can use these to clean up private data. See ÒApplication termination scriptÓ on page 28.
+¥ LrPluginInfoUrl gives the URL of your web site, or a page that provides information about your plug-in. This URL is displayed in the Status section of the Plug-in Manager dialog when your plug-in is loaded and selected. The URL is also displayed as part of the error message if your plug-in fails to load properly or cannot be found. 
+¥ LrEnablePlugin and LrDisablePlugin provide functions to be called when your plug-in is enabled or disabled in the Plug-in Manager dialog. 
+For example:
+return {
+LrSdkVersion = 5.0,
+LrSdkMinimumVersion = 2.0, -- minimum SDK version required by this plug-in
+LrToolkitIdentifier = 'com.adobe.lightroom.sample.plug-in-info',
+LrPluginName = LOC "$$$/PluginInfo/Name=Plug-in Info Sample",
+LrPluginInfoProvider = 'PluginInfoProvider.lua',
+LrInitPlugin = 'PluginInit.lua',
+    LrPluginInfoUrl = 'http://www.mycompany.com/lrplugin_info.html', }
+Customizing plug-in load behavior
+Initialization and termination functions for the Plug-in Manager
+In addition to the LrInitPlugin and LrShutdownPlugin scripts that are run on load and unload, you can provide functions to be called when your plug-in is selected or deselected. To do so, the service definition script for your Plug-in Info Provider should return these table entries, which contain the function definitions:
+startDialog = function( propertyTable ) ... end, endDialog = function( propertyTable ) ... end,
+When the functions are defined in a Plug-in Info Provider:
+¥ The startDialog function is called whenever your plug-in is selected in the Plug-in Manager.
+¥ The endDialog function is called when the user deselects the plug-in in the Plug-in Manager.
+NOTE: These same entries can be supplied by an Export Service Provider, although the definitions are slightly different. Functions defined in an Export Service Provider are executed only when the plug-in is selected in the Export dialog, never from the Plug-in Manager dialog. See ÒInitialization and termination functions for servicesÓ on page 39. 
+The propertyTable parameter for both functions is an empty, observable table which you can use to keep private data for your plug-in. (See ÒBinding UI values to data valuesÓ on page 96.) This table is discarded when your plug-in is deselected in the Plug-in Manager or when the Plug-in Manager dialog is closed. It is not preserved across sessions. You can use LrPreferences if you want to save information across invocations. 
+These are blocking calls. If you need to start a long-running task (such as network access), create a task using the LrTasks namespace. See ÒDefining function contexts and tasksÓ on page 19.
+Adding custom sections to the Plug-in Manager
+Your plug-in can define one or more sections to be displayed in the Plug-in Manager dialog (when defined in an LrPluginInfoProvider entry) or in the Export or Publishing Manager dialog (when defined in an 
+LrExportServiceProvider entry). The custom sections can be shown above or below the Lightroom Classic standard sections for the dialog. 
+To customize the dialog, define a function that returns a table of sections, defined using LrView objects. The function is the value of one of these service entries:
+sectionsForTopOfDialog = function( viewFactory, propertyTable ) ... end, sectionsForBottomOfDialog = function( viewFactory, propertyTable ) ... end,
+NOTE: Similar functions can be defined in an Export Service Provider, to customize the Export dialog when the export destination is selected or the Publishing Manager dialog for a publish service, and also in an Export Filter Provider, to add a section to the dialog when a post-process action is selected. See ÒCustomizing the Export and Publishing Manager dialogsÓ on page 54 and ÒAdding an export post-process actionÓ on page 42. 
+Lightroom Classic passes your function a factory object which allows you to create the LrView objects that define the elements of your sections; that is, UI controls, such as buttons and text, and containers that group the controls and determine the layout. For additional details of the dialog elements you can create with LrView, see ÒAdding custom dialog viewsÓ on page 84.Ó
+Defining menu items for a plug-in
+The function that you define here returns a table of tables, where each table defines one dialog section:
+sectionsForTopOfDialog = function( viewFactory, propertyTable ) return { 
+{ ...section entry ... },
+{ ...section entry ... },
+...
+}
+    } end
+A section entry table defines the contents of an implicit container, which Lightroom Classic creates to hold your view hierarchy. 
+¥ Each section entry sets a title and synopsis for the section; the section is identified by the title text on the left, and is collapsible. When in the collapsed state, the synopsis text is shown on the right.
+¥ The rest of the table entry creates the UI elements that are shown when the section is expanded. To create the UI elements, use the LrView factory passed to your top-level sectionsFor... function. This process is explained in more detail in ÒAdding custom dialog viewsÓ on page 84.
+
+When adding sections to the Plug-in Manager, the propertyTable parameter for both functions is an empty, observable table which you can use to keep private data for your plug-in for a dynamic user interface. See ÒBinding UI values to data valuesÓ on page 96.
+Defining menu items for a plug-in
+To define a menu item that starts your plug-inÕs UI, or performs any other script-defined operation, the table returned by your Info.lua file must include one of these items:
+Defining menu items for a plug-in
+LrExportMenuItems
+LrLibraryMenuItems
+LrHelpMenuItems
+¥ Items that you add in LrExportMenuItems appear in the Plug-in Extras submenu of the File menu (immediately below the Export section).
+¥ Items that you add to the Library and Help menus appear in the Plug-in Extras submenu of those menus.
+Each item is a table of tables, and each member table defines one menu item. The member table for a menu item should contain these entries:
+title 
+(String) The display name of the menu item. 
+file 
+(String) The name of the Lua file (service definition script) to be executed when the menu item is chosen. See ÒDefining an export serviceÓ on page 36.
+enabledWhen
+(String, optional) A condition under which to enable this menu item. One of: 
+¥ photosAvailable: Item enabled when any photos or videos are available in the grid.
+¥ photosSelected: Item enabled when any photos are selected. Ignores videos.
+¥ videosSelected: Item enabled when any videos are selected. Ignores still photos.
+¥ anythingSelected: Item enabled when any photos or videos are selected. 
+If the selection is very large (>5000 photos), menu items are enabled regardless of this value.
+In Windows, the title string can include an ampersand (&) character in the name to make the following character a keyboard shortcut or accelerator that invokes that item. (This feature is not available in macOS; on that platform, the & character is automatically removed if present.) 
+For example, suppose the table returned by your Info.lua file contains this item:
+LrExportMenuItems = { title = 'My &Plugin', file = 'somefile.lua' }
+This would create a command in the File > Plug-in Extras menu with the label ÒMy PluginÓ. The command would execute the script found in somefile.lua. 
+The user can invoke this command using the keyboard accelerator sequence ALT F + U + ENTER + P.
+¥ ALT F brings up the File menu
+¥ U is the keyboard accelerator for the Plug-in Extras submenu
+¥ P is the keyboard accelerator for the new command

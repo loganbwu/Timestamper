@@ -24,9 +24,14 @@ class PresetManager:
         self.combo_box = combo_box
         self.fields_map = fields_map
         self.status_bar_callback = status_bar_callback
+        self._signal_blocked = False
 
         self.presets: list[dict] = []
         self.refresh_presets()
+        
+        # Connect both signals for comprehensive preset loading
+        self.combo_box.currentIndexChanged.connect(self._on_index_changed)
+        self.combo_box.currentTextChanged.connect(self.load_preset)
 
     def refresh_presets(self):
         """Refreshes the list of presets from settings and updates the combo box."""
@@ -35,6 +40,14 @@ class PresetManager:
         self.combo_box.clear()
         if self.presets:
             self.combo_box.addItems([x["Name"] for x in self.presets])
+
+    def _on_index_changed(self, index: int):
+        """Handles combo box index changes and loads the corresponding preset."""
+        if index < 0 or index >= len(self.presets):
+            return
+        
+        preset_name = self.presets[index]["Name"]
+        self.load_preset(preset_name)
 
     def load_preset(self, item: str):
         """Loads the selected preset into the corresponding fields."""
@@ -65,8 +78,13 @@ class PresetManager:
 
         self.settings.setValue(f"preset_{self.preset_type}", self._remove_none_preset(self.presets))
         current_name = new_preset["Name"]
+        
+        # Block signals to avoid triggering load_preset during refresh
+        self.combo_box.blockSignals(True)
         self.refresh_presets()
         self.combo_box.setCurrentText(current_name)
+        self.combo_box.blockSignals(False)
+        
         message = f"Preset '{current_name}' for {self.preset_type} has been added."
         logger.info(message)
         self.status_bar_callback(message, 3000)
@@ -84,7 +102,12 @@ class PresetManager:
             
         self.presets = [x for x in self.presets if x["Name"] != name]
         self.settings.setValue(f"preset_{self.preset_type}", self._remove_none_preset(self.presets))
+        
+        # Block signals to avoid triggering load_preset during refresh
+        self.combo_box.blockSignals(True)
         self.refresh_presets()
+        self.combo_box.blockSignals(False)
+        
         message = f"Preset '{name}' for {self.preset_type} has been removed."
         logger.info(message)
         self.status_bar_callback(message, 3000)

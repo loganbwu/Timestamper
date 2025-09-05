@@ -20,7 +20,7 @@ from .constants import (
 from .preset_manager import PresetManager
 from .ui_manager import UIManager
 from .exif_manager import ExifManager, ExifToolNotFound
-from .utils import validate_numeric_input, float_to_shutterspeed, parse_lensinfo
+from .utils import validate_numeric_input, validate_exposure_time_input, float_to_shutterspeed, parse_lensinfo
 from .settings_dialog import SettingsDialog
 
 # Configure logging
@@ -94,7 +94,6 @@ class MainWindow(QMainWindow):
         self.camera_preset_manager = PresetManager(
             self.settings, "cameras", self.preset_camera_name, self.camera_fields, self.statusBar().showMessage
         )
-        self.preset_camera_name.currentTextChanged.connect(self.camera_preset_manager.load_preset)
         self.preset_camera_add.clicked.connect(lambda: self.camera_preset_manager.add_preset(self.preset_camera_name.currentText()))
         self.preset_camera_remove.clicked.connect(lambda: self.camera_preset_manager.remove_preset(self.preset_camera_name.currentText()))
 
@@ -110,7 +109,6 @@ class MainWindow(QMainWindow):
         self.lens_preset_manager = PresetManager(
             self.settings, "lenses", self.preset_lens_name, self.lens_fields, self.statusBar().showMessage
         )
-        self.preset_lens_name.currentTextChanged.connect(self.lens_preset_manager.load_preset)
         self.preset_lens_add.clicked.connect(lambda: self.lens_preset_manager.add_preset(self.preset_lens_name.currentText()))
         self.preset_lens_remove.clicked.connect(lambda: self.lens_preset_manager.remove_preset(self.preset_lens_name.currentText()))
     
@@ -365,9 +363,14 @@ class MainWindow(QMainWindow):
 
     def _validate_all_numeric_inputs(self) -> bool:
         """Validates all numeric input fields."""
+        # Validate ExposureTime separately with special validation
+        if not validate_exposure_time_input("ExposureTime", self.exposuretime.text()):
+            self.statusBar().showMessage(f"Error: Invalid exposure time input: '{self.exposuretime.text()}'. Use decimal (e.g., '0.004') or fraction (e.g., '1/250') format.", 5000)
+            return False
+        
+        # Validate other numeric fields normally
         numeric_fields = {
             "ISO": self.iso.text(),
-            "ExposureTime": self.exposuretime.text(),
             "FNumber": self.fnumber.text(),
             "FocalLength": self.focallength.text().removesuffix("mm"),
             "WideFocalLength": self.widefocallength.text(),

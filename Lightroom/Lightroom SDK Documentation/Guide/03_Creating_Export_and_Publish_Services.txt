@@ -1,0 +1,781 @@
+3	Creating Export and Publish Services
+Plug-ins can customize Lightroom Classic's export and publish behavior. You can:
+¥ Create an Export Filter that modifies a photo after Lightroom Classic performs the initial rendering, but before it is passed to it final export destination.
+¥ Alter the rendering process, or define post-processing actions for rendered photos.
+¥ Send rendered images to locations other than files on the local computer. 
+¥ Customize the Export and Publishing Manager dialogs by adding or removing sections.
+Creating an export or publish service
+Lightroom Classic offers two customizable mechanisms for transferring photos to an external location: export and publish.
+¥ Export is a one-time operation: the user selects some photos, the photos are rendered once and transferred to their destination. Lightroom Classic maintains no further record of the export (although some plug-ins do retain such a record via custom metadata). By default, Lightroom Classic provides export services for a user-selected location on the local hard drive and CD/DVD drive. Plug-ins can define export services to extend this support to other destinations (typically web services or devices). See ÒDefining an export serviceÓ on page 36.
+¥ Publish is similar to export, but represents an ongoing relationship between Lightroom Classic and the destination. You publish a collection (or many collections) of photos to a location when you want them to stay up to date as you change the photos. To publish, the user establishes a connection to a destination (typically, but not necessarily, a web service) in the Publishing Manager dialog. By default, Lightroom Classic provides publish service support for user-selected locations on the local hard drive and Flickr. As with export services, plug-ins can define publish services to extend this support to other destinations. See ÒDefining a publish serviceÓ on page 40.
+Though they are presented differently, there is a lot in common between these two mechanisms and they share much of the same API. Export services are the simpler of the two, so weÕll start by describing this API, then describe additional functionality that is specific to publish services.
+Defining an export service
+To define the functionality of your export service, write a Lua script that returns a table; each predefined entry in the table describes a specific type of customization. You then declare the name of your service and associate it with the defining script, in the same way you declare any plug-in.
+To declare an Export Service Provider, add the following block to your Info.lua file:
+LrExportServiceProvider = { title = "Service Name",  -- this string appears as the Export destination file = "MyExportServiceProvider.lua",  -- the service definition script builtInPresetsDir = "myPresets", -- an optional subfolder for presets
+     36
+},
+The title and file entries are required. You can use the built-in function LOC and a ZString if you wish to localize the serviceÕs title; see details in Chapter 7, ÒUsing ZStrings for Localization.Ó The service definition script should return a table that contains:
+¥ A pair of functions that initialize and terminate your export service.
+¥ Settings that you define for your export service.
+¥ One or more items that define the desired customizations for the Export dialog. These types of customizations are defined:
+¥ Restrict the built-in services offered by the Export dialog.
+¥ Customize the Export dialog by defining new sections.
+¥ A function that defines the export operation to be performed on rendered photos (required). 
+Here is an example of a table returned by a service definition script:
+return { startDialog = function( propertyTable ) ... end, endDialog = function( propertyTable, why ) ... end,
+exportPresetFields = { { key = 'myPluginSetting', default = 'Initial value' } }, showSections = { 'fileNaming', 'imageSettings' }, sectionsForBottomOfDialog = function( viewFactory, propertyTable ) ... end, processRenderedPhotos = function( functionContext, exportContext ) ... end
+}
+These are the specific items that can be in the table returned by the service definition script for an Export or Publish Service Provider:
+Item
+Description
+startDialog endDialog
+Initialization and termination functions for your plug-in; see 
+ÒInitialization and termination functions for servicesÓ on page 39.
+exportPresetFields
+A set of properties that you define for your plug-in that you want to be persistent between sessions. See ÒRemembering user choicesÓ on page 58. These are added to the built-in settings defined by Lightroom Classic; see ÒLightroom Classic built-in property keysÓ on page 60.
+processRenderedPhotos	A callback function that manages the rendering and subsequent handling of exported photos; see ÒCustomizing the Export and Publishing Manager dialogsÓ on page 54.
+
+	Item	Description
+
+canExportToTemporaryLocation A Boolean value that indicates whether the service provider can place files in a temporary export destination in the local file system. 
+When true, an additional item, ÒTemporary folder (will be discarded upon completion)Ó is added to the Export To pop-up menu at the top of the Export dialog. Default is false. (This is tied to LR_export_destinationType; see ÒLightroom Classic built-in property keysÓ on page 60.)
+If the user selects this option, the file naming options in the dialog disappear and the files are written to a hidden temporary folder on the local hard drive. When the Export Service Provider has completed its work, this folder and its contents are deleted.
+If your plug-in hides the Export Location section of the dialog, you do not need to use this option. The temporary folder behavior happens automatically in that case.
+Optional in Lightroom SDK 2.0 and later. Ignored in earlier versions.
+showSections hideSections 
+A callback function that returns a table of built-in sections to include or exclude from those displayed in the Export dialog.
+See ÒRestricting existing service functionalityÓ on page 57 for details.
+allowFileFormats disallowFileFormats
+A table of file formats to include or exclude from those offered in the Export dialog. 
+See ÒRestricting existing service functionalityÓ on page 57 for details.
+allowColorSpaces disallowColorSpaces
+A table of color spaces to include or exclude from those offered in the Export dialog.
+See ÒRestricting existing service functionalityÓ on page 57 for details.
+sectionsForTopOfDialog sectionsForBottomOfDialog
+Definitions for one or more new sections to display in the Export dialog; see ÒAdding custom sections to the Export or Publishing Manager dialogÓ on page 55 for details.
+hidePrintResolution
+When true, the options for sizing in the Image Sizing section are shown only in pixel units; all mention of print units such as inches, centimeters, and pixels-per-inch are hidden.
+additional publish service options 
+If this is a publish service, there are a number of other options that you can specify; see ÒPublish service optionsÓ on page 41.
+Initialization and termination functions for services
+You can provide functions to be called when a post-process action or export destination defined by your plug-in is selected or deselected in the Export or Publishing Manager dialog. To do so, the service definition script for your Export Filter Provider or Export Service Provider should return these table entries, which contain the function definitions:
+startDialog = function( propertyTable ) ... end, endDialog = function( propertyTable, why ) ... end,
+¥ The startDialog function is called when the user chooses a post-process action or export destination provided by this plug-in in the Export dialog, or when the destination is already selected when the dialog is invoked, remembered from the previous export operation.
+¥ The endDialog function is called when the user deselects the action or export destination in the Export dialog, or dismisses the Export dialog.
+NOTE: Similar entries can be supplied by a Plug-in Info Provider, although the definitions are slightly different. Functions defined in a Plug-in Info Provider are executed only when the plug-in is selected in the Plug-in Manager dialog, never from the Export dialog. See ÒInitialization and termination functions for the Plug-in ManagerÓ on page 33. 
+The propertyTable parameter for both functions is a table which contains the most recent settings for your export plug-in, including both settings that you have defined and Lightroom Classic-defined export settings (see ÒRemembering user choicesÓ on page 58). When your plug-in is being used as a publish service provider, the property table contains additional values that tell you about the publishing status; see ÒPublish Service propertiesÓ on page 69.
+When your plug-in is deactivated, Lightroom Classic calls your endDialog function with why set to one of the following string values:
+changedServiceProvider
+A different Export Service Provider was chosen as the export or publish destination. Your plug-in is no longer active.
+ok
+The user clicked the ÒExportÓ or ÒSaveÓ button. The Export or Publishing Manager dialog has closed.
+¥ For an export service, Lightroom Classic begins exporting images through your plug-in. Do not attempt to start uploading photos at this point; use the processRenderedPhotos callback function to do that. See ÒCustomizing the Export and Publishing Manager dialogsÓ on page 54.
+¥ For a publish service, Lightroom Classic creates a new publish service in the Publish Services panel that can be used later to publish images through your plug-in. 
+cancel
+The user clicked the ÒCancelÓ button and the Export or Publishing Manager dialog has closed without initiating the operation.
+These are blocking calls. If you need to start a long-running task (such as network access), create a task using the LrTasks namespace. See ÒDefining function contexts and tasksÓ on page 19.
+
+Defining a publish service
+Defining a publish service
+Starting with version 3.0, Lightroom Classic allows you to send photos to a local or network destination for publication. The publication process is similar to the export process, and the Publishing Manager dialog is largely similar to the Export dialog.
+
+A publish service differs from an export service in these ways:
+¥ The publish service keeps information about what has been published previously, which allows you to export only new or changed images to the same destination.
+Defining a publish service
+¥ A publish service keeps track of the locations to which items have been published, and can access those locations. 
+¥ A publish service can manage collections or folders on the remote export destination from within the Lightroom Classic catalog.
+¥ A publish service can retrieve comment and rating information that has been added to an image after publication.
+Within each publish service, the user can create one or more collections, just like those in the Library moduleÕs Collections panel. These are referred to as published collections. The user adds photos to published collections (or has them added automatically if it is a published smart collection). When the user chooses to publish (by choosing Publish Now from the published collectionÕs context menu, for example), Lightroom Classic brings the collection up to date, synchronizing the local photos with the remote copies. 
+Updating the collection may involve one or more of the following operations:
+¥ Export new photos to the collection.
+¥ Re-export existing photos to the collection (updating the rendering or metadata if they have changed since the previous publish).
+¥ Delete photos from the collection.
+¥ Update the sorting sequence for the collection (if applicable).
+¥ Download comments and ratings (if applicable) from the remote service.
+Publish service options
+To define the functionality of your publish service, write a Lua script that returns a table; each predefined entry in the table describes a specific type of customization. You then declare the name of your service and associate it with the defining script, in the same way you declare any plug-in.
+To declare a Publish service, add the following block to your Info.lua file:
+LrExportServiceProvider = { title = "Service Name",  -- this string appears in the Publish Services panel file = "MyPublishServiceProvider.lua",  -- the service definition script
+},
+Notice that this differs from an Export service in that you do not provide a presets folder location. A plug-in cannot control the settings in the Publishing Manager dialog using presets, although it can provide default values for its own settings, and modify its own settings on dialog startup using the startDialog callback. 
+With the exception of export presets, a publish service is a superset of an export service. The publish service definition script can create any of the elements that an export service does, with only minor differences. In addition, your publish service should define additional elements that control the publication data and processes.
+The API defines a number of additional items that allow you to customize the publishing experience for the end user, and to reflect changes in the collection structure made by your plug-in. These are the additional items that can be in the table returned by the service definition script for a Publish Service Provider; for details of how to define these items and what they do, see the Lightroom Classic SDK API Reference and the Flickr plug-in. 
+Adding an export post-process action
+An Export Filter Provider is a script that allows you to modify a photo after Lightroom Classic performs the initial rendering, but before it is passed to it final export destination, by defining a post-process action. A post-process action can modify the rendered images, or can suppress the export of certain photos, based on any criteria that you define. The script is identified by the LrExportFilterProvider entry in the plug-inÕs Info.lua file. 
+A single SDK export plug-in can define one or more Export Filter Providers, one or more Export Service Providers, or both. In any given export session, there must be exactly one Export Service Provider, but there can be any number of post-process actions (or none). A single Export Filter Provider can define multiple actions. Post-process actions are executed in a specific sequence, partly determined by user choices. If you set up a dependency using the requiresFilter option, the sequence of execution honors that dependency.
+While Export Service Providers can add multiple sections at either the top or the bottom of the Export dialog, each post-process action can provide only one section for the dialog, which is always inserted after Lightroom Classic's built-in sections, and before any "bottom" sections defined by the Export Service Provider.
+Export Filter Providers cannot define presets of their own, but can be included in an Export Service preset; see ÒCreating an export or publish serviceÓ on page 36.
+A post-process action is inserted between Lightroom Classic's initial rendering of photos and the writing of the rendered image files to their destination (either the default destination, or one provided by a plug-inÕs export service). A post-process action (or set of actions) can be applied to photos that are being exported to any destination; that is, an Export Filter Provider does not need to be part of the same plug-in that provides the export service.
+For details, see ÒHow post-process actions are executedÓ on page 49
+Inserting and removing actions
+When any plug-in defining a post-process action is loaded, the action appears in the Post-Process Actions section of the Export dialog, on the left below the Presets section. When you open the plug-in, the individual actions defined by the plug-in appear as choices below it. When you select an action, the Insert button is enabled, allowing you to insert the action into the processing queue. (You can also insert an action by double-clicking it.)
+
+
+An action that has been inserted is flagged with a check mark; when it is selected, the Remove button is enabled, allowing you to remove it from the processing queue.
+
+When an action is inserted, the related section is shown in the Export dialog. You can also remove the action from the queue by clicking the X icon in the related section. 
+
+Action dependencies
+You can set up a dependency among a set of actions, such that one action actually performs the photo processing, and other actions in the set are used to determine the parameters for that operation. The one that performs the rendition is typically the only one that defines a filterRenderedPhotos() function. This main action is required by the others in the set. To declare the dependency, make the ID of the main action the value of the requiresFilter option for the dependent actions.
+Each post-process action can define a single section for the Export dialog. When the user selects an action, that actionÕs dialog section is shown, along with that of the required filter, if there is one.
+For example, suppose your plug-in has defined:
+1. MyAction, the main action that performs the filtering operation
+2. Color, which allows the user to choose a color to be used by MyAction
+3. Lines, which allows a user to choose line widths to be used by MyAction
+4. An Export Service Provider that performs an FTP upload
+When the user chooses the FTP-upload export destination and clicks Export, the service provider requests an export rendition for each photo that is active at the time. If the user does not choose any actions, the request is satisfied directly by Lightroom Classic using LrExportRendition. 
+If the user inserts Color, the dialog shows both the section for defining a border, and the section for 
+MyAction, which is required by Color. After making all the necessary choices for the chosen actions, the 
+user clicks Export. In this case, the request is intercepted and redirected to Color. Color receives a list of renditions that it is expected to satisfy; the action then makes its own rendition request. This request is similarly intercepted and sent to MyAction. MyAction performs the actual processing and makes its own request for renditions. When there are no more actions, the requests are satisfied directly by Lightroom Classic using LrExportRendition.
+Each action runs in its own task in Lightroom Classic (see ÒDefining function contexts and tasksÓ on page 19), which means that the operations performed by each action can be performed in parallel. An action task first requests its renditions, then iterates through them making its transformations as appropriate. When the action is done rendering each photo, it signals the downstream task which can then process the rendered photo. For a more detailed description of the processing path, see ÒHow post-process actions are executedÓ on page 49.
+Declaring export post-process actions
+In the Info.lua file for a plug-in that defines an export post-process action, you must set LrSdkVersion 
+= 2.0 (or higher) in order for your filters to be recognized. If you set LrSdkMinimumVersion = 1.3, the plug-in can be loaded in Lightroom 1.3, but the post-process actions are ignored.
+To declare one or more post-process actions, add the following block to your Info.lua file:
+LrExportFilterProvider = { title = "Filter Name",  -- this display string appears in the dialog file = "MyExportFilterProvider.lua",  -- the action definition script id = "myFilter",  -- a unique identifier for the action requiresFilter  = "mainFilter",  -- optional supportsVideo = "true" -- optional
+},
+There can be one or many action definitions. Each definition is a table with up to four items:
+¥ title (string): The localizable display name of the action, which appears in the Post-Process Actions section of the Export dialog.
+¥ file (string): The name of the Lua file (action definition script) that provides more information about the action. The script is executed when the export operation is started; that is, when the user clicks Export in the Export dialog.
+¥ id (string): An identifying string for this action, unique within this plug-in. Required if more than one action is defined in one plug-in.
+¥ requiresFilter (string): Optional, the identifier for the action that performs the processing. 
+¥ supportsVideo (Boolean): Optional. If true, this filter has access to video files. Default is false; if not supplied, video files are not processed by this filter. Supported in version 4.0 or higher.
+For example, this defines three distinct actions, and the first is the one that actually performs the processing. It must be present before either of the other two can run; they simply set parameters to be used by the main action:
+LrExportFilterProvider = {
+{ title = "MyAction", file = "myAction.lua", id = "main",
+},
+{
+title = "Color", file = "colorAction.lua", id = "color",
+requiresFilter = "main",
+},
+{ title = "Lines", file = "lineAction.lua", id = "lines",
+requiresFilter = "main",
+},
+},
+Defining a post-process action
+An action definition script must return a table which can contain these entries. All entries are optional.
+postProcessRenderedPhotos
+A function that defines how this action processes the list of rendered photos that it receives. See ÒDefining post-processing of rendered photosÓ on page 47.
+Typically, only the main action in a group defines this function.
+shouldRenderPhoto
+A function that selects photos to be removed from the list of rendered photos that it receives. See ÒRemoving photos from the export operationÓ on page 47.
+startDialog endDialog
+Initialization and termination functions that run when the action is selected or deselected in the Export dialog. See ÒInitialization and termination functions for servicesÓ on page 39.
+	exportPresetFields	A set of export preset settings that you define for your plug-in (in 
+addition to the built-in settings defined by Lightroom Classic). If provided, these fields are transferred from the Export dialogÕs property table to any export preset that is created when this post-process action is selected for the current Export session. See ÒRemembering user choicesÓ on page 58. 
+
+sectionForFilterInDialog A function that defines a new section in the Export dialog which appears when the action is selected, allowing the user to make choices that affect the operation. Any action in a group can define a dialog section.
+The function must conform to this prototype:
+sectionForFilterInDialog = function( viewFactory, propertyTable ) ... end,
+This function is defined in the same way as sectionsForTopOfDialog and sectionsForBottomOfDialog, except that the function returns a single section definition, not an array of section definitions; see ÒAdding custom sections to the Export or Publishing Manager dialogÓ on page 55. The section is always added at the bottom of the Export dialog, but above any ÒbottomÓ sections defined for the active Export Service Provider.
+The property table passed to this function is shared among all Export Filter Providers and Export Service Providers defined by this plug-in.
+
+Removing photos from the export operation
+If you wish to remove photos from the list of those to be exported, based on criteria of your choosing, your action definition script can define a function named shouldRenderPhoto(). This function receives two parameters, the export settings and the current photo, and is called successively on each entry in the list of rendered photos passed to the action. shouldRenderPhoto = function ( exportSettings, photo )...end,
+The function should return true if the photo should remain in the list and be passed to the next action or exported, or false if it should be removed from the list. 
+For a publish operation, if a post-process action returns false for a potentially publishable photo, that photo is not published, but remains in the ÒNew Photos to PublishÓ state.
+This example is for a simple filter that removes photos that do not have a minimum star rating:
+function RatingExportFilterProvider.shouldRenderPhoto( exportSettings, photo ) local minRating = exportSettings.min_rating or 1 local shouldRender
+        
+ local rating = photo:getRawMetadata( 'rating' ) shouldRender = rating and rating >= minRating
+ return shouldRender
+end
+Defining post-processing of rendered photos
+To specify exactly how each photo should be modified after it is rendered and passed to the action, the action-definition script for your main action defines a function named postProcessRenderedPhotos(). 
+postProcessRenderedPhotos = function( functionContext, filterContext ) ... end,
+This function takes two parameters, a function context and a filter context. It can retrieve each photo from the filterContext.renditionsToSatisfy property, and process it as desired. The list of renditions provides access to the export settings with which the photos were originally rendered, and can check or modify those settings and rerender the photos as needed.
+The processing is typically performed by an external application. You can build a command string and pass it to a platform-specific shell for execution, using LrTasks.execute().
+This processing function typically looks something like this: 
+function SimpleExternalToolFilterProvider.postProcessRenderedPhotos( functionContext, filterContext )
+-- Optional: If you want to change the render settings for each photo -- before Lightroom renders it, write something like the following.
+-- If not, omit the renditionOptions definition, and also omit -- renditionOptions from the call to filterContext:rendition() local renditionOptions = { filterSettings = function( renditionToSatisfy, exportSettings ) exportSettings.LR_format = 'TIFF' return os.tmpname()
+-- ... if you wanted Lightroom to generate TIFF files
+-- and override the configured filename when providing -- input images to this post-process action.
+-- By doing so, you assume responsibility for creating
+    -- the file type that was originally requested and placing it -- in the location that was originally requested in your -- filter loop below. end,
+}
+        for sourceRendition, renditionToSatisfy in filterContext:renditions( 
+renditionOptions ) do
+-- Wait for the upstream task to finish its work on this photo.               local success, pathOrMessage = sourceRendition:waitForRender() if success then                
+-- Now that the photo is completed and available to this filter, -- you can do your work on the photo here.
+-- It would look somethinglike this:                       local status = LrTasks.execute( 'mytool "' .. pathOrMessage .. '"' )
+-- (This tool is hypothetical.)
+-- You may need to use escapes in the file name so that -- special characters are not interpreted by the OS shell -- (cmd.exe in  Windows or bash in Mac OS).
+-- In Windows, enclose the whole command in double quotes.
+-- If your tool cannot process the photo as intended, use
+-- something like this to signal a failure for this rendition only:                        
+if status ~= (desired status) then renditionToSatisfy:renditionIsDone( false, "error message" )
+end
+-- (Replace "error message" with a user-readable string explaining why -- the photo failed to render.)
+-- It is neither necessary nor harmful to call renditionIsDone if the -- rendition has completed successfully. 
+-- The iterator for filterContext:renditions calls it
+-- automatically if you have not already done so.                
+end        
+end
+end
+How post-process actions are executed
+During an export operation, rendition requests and state information are passed up a chain of processors from the Export Service Provider to the Lightroom Classic built-in render engine, and rendered photos are passed back down again. The sequence is followed for each photo in the list of photos to be exported. This section explains the sequence of calls, and what information is passed at each point.
+This Export Dialog shows three Export Filter Providers, whose actions have all been inserted in the processing queue. The Export Service Provider for FTP Upload (one of the sample plug-ins included in the SDK) has been selected.
+
+The post-process actions are always invoked in the order in which they appear in the dialog, but the export operation traverses the stack several times, either top-to-bottom (blue arrows), or bottom-to-top (red arrows). In this discussion, the terms upstream and downstream refer to the downward flow; for example, when photos that have been rendered by the built-in render engine (using information passed up from the providers) are passed back down to be modified, and finally exported:
+¥ An upstream provider means the post-process action immediately above the current one in the dialog, which provides a rendered photo to the current action for further processing. When there are no more actions, the final upstream provider is Lightroom ClassicÕs built-in rendering engine.
+¥ A downstream consumer means the post-process action immediately below the current one in the dialog, which receives a rendered photo from the current one, its upstream provider. When there are no more actions, the final downstream consumer is the Export Service Provider that sends the rendered photo to the final destination.
+When the user starts the export operation by clicking Export, Lightroom Classic constructs an LrExportSession object with the settings and photos chosen in the dialog. 
+It then calls exportSession:doExportOnCurrentTask(), which performs the following operations. (If you wish to start an export without using the export dialog, you can make the same calls yourself.)
+In this discussion, an Export Service Provider is called a service, and an Export Filter Provider is called a filter.
+Stage 1: Deciding how the photos should be rendered
+If the service has defined an updateExportSettings() function, it is called. This function takes one argument, the export-settings table, and allows the service to force certain render settings to its preferred or required settings. For example, to force a specific size for the exported photos, you could use this definition:
+updateExportSettings = function( exportSettings ) exportSettings.LR_size_maxHeight = 400 exportSettings.LR_size_maxWidth = 400
+end
+The filters, if any, are not involved at this stage.
+Stage 2: Deciding what photos should be rendered
+The filters are invoked from top-to-bottom. For each filter:
+¥ If it is defined, the shouldRenderPhoto() function is called for each photo. If it returns false, the photo is removed from the list of photos to export (and thus does not get passed to the downstream consumer). If it returns true, the photo remains in the list and is passed to the downstream consumer.
+¥ If shouldRenderPhoto() is not defined for the filter, all photos are passed to the downstream consumer.
+Stage 3: Requesting renditions
+1. The export session (LrExportSession) generates rendition request objects (LrExportRendition) for every photo that was not removed in Stage 2. (The actual rendering of the photos does not start yet.) 
+During this stage, Lightroom Classic can show a dialog message if a photo already exists at the proposed destination location. You can control this behavior using the LR_collisionHandling setting in the export settings table.
+2. The service's processRenderedPhotos() function is called. If no such function exists, a default one is provided that performs the steps described below.
+IMPORTANT:  Each of the providers (the export service, filters, and Lightroom Classic's built-in rendering engine) runs in its own task (using LrTasks), so these loops operate in parallel. It is likely that each provider will be running simultaneously. Several photos can be in process simultaneously by different providers. This allows the overall export operation to complete much more quickly than it would if every photo had to go through all of the steps before the processing of the next photo could begin.
+3. The processRenderedPhotos() function calls exportContext:renditions() and then waits for each rendition to be completed by calling rendition:waitForRender(). (We will discuss the completion of this loop in Stage 4.)
+4. The service's rendition requests are sent to its upstream provider (that is, the bottom-most filter, or if there are no filters, Lightroom Classic's built-in render engine).
+5. For each filter, if a postProcessRenderedPhotos() function is defined, it is called. The function is called only once, regardless of the number of photos being exported.
+This function should enter into a loop of the form: for sourceRendition, renditionToSatisfy in filterContext:renditions() do ... end
+¥ The filter context object generates a new rendition request (LrExportRendition) for each of the renditions provided this filter.
+¥ The renditions() iterator provides two values: sourceRendition (the new rendition to be satisfied by the upstream provider) and renditionToSatisfy (the corresponding rendition that this filter is expected to satisfy for its downstream consumer).
+ADVANCED: If the filter provider wishes to request a different file format than it is expected to satisfy, it can do so using the renditionOptions/filterSettings code snippet shown in ÒDefining post-processing of rendered photosÓ on page 47. This might be a good idea as a way to avoid re-encoding (and thus degrading) JPEG files. If you do this, you are still responsible for providing an output file in the exact format and location required by renditionToSatisfy.
+¥ The filter must wait for each rendition to be completed by its upstream provider by calling sourceRendition:waitForRender(). (We will discuss the completion of this loop in Stage 4.)
+If there is no processRenderedPhotos() function defined by this filter, the filter is simply left out of the loop and all rendition requests instead go to the upstream provider.
+IMPORTANT: Each filter must generate a photo conforming exactly to the specifications provided to it. In particular, it must provide a suitable photo file in the specified format and at the exact path specified by the downstream consumer. If it cannot do so, it must use renditionToSatisfy:renditionIsDone( false, message ) to indicate why not. It must never provide a file of a different format than that requested.
+6. After all of the filters have had an opportunity to intercept the rendition requests, the requests are finally passed to Lightroom Classic's built-in rendering engine.
+Stage 4: Processing rendered photos
+As Lightroom Classic completes each rendition request, it signals completion by allowing the corresponding rendition:waitForRender() call to complete.
+The rendering loops described in stage 3 then finish in top-to-bottom sequence for each photo. For each filter that defines the postProcessRenderedPhotos() function:
+1. The waitForRender() call completes, meaning that the upstream provider has completed its attempt to render the photo. If that attempt was successful, a valid photo file conforming to the specifications requested by this filter is present at the path specified by the sourceRendition; that is, specified by this filter when it requested the rendition from its upstream provider.
+2. The filter can now do whatever processing it needs to do on that file. This typically means invoking a third-party application using LrTasks.execute().
+ADVANCED: If the filter has changed the file format or location on disk using renditionOptions, it must now perform the appropriate operations on the file to convert it so that it now satisfies the request as specified in renditionToSatisfy.
+3. When the processing operation is finished, the filter must report its status on the rendition by calling renditionToSatisfy:renditionIsDone( success, message ). 
+This is done automatically by the filterContext:renditions() iterator if you have not already done so explicitly. The iterator verifies that a file exists at the expected path and signals success or failure accordingly. If the file is missing, it uses a generic "an unknown error occurred" message. If you want to provide a more meaningful message, make an explicit call to renditionIsDone( false, message ). Typically, you need only call renditionIsDone() on failure.
+4. The call to renditionToSatisfy:renditionIsDone() allows the downstream consumer's waitForRender() call to complete.
+5. Meanwhile, the task for this filter continues on and waits for the next rendition.
+6. Once all of the filters have finished processing a photo, the waitForRender() call in the serviceÕs processRenderedPhotos loop completes. The service does whatever processing it needs to (in this example, uploading with FTP), and then waits for the next photo to be available.
+7. If the "Add to this Catalog" checkbox was selected, Lightroom Classic adds the new photo to the catalog at this point.
+Stage 5: Error reporting and clean up
+Once the serviceÕs processRenderedPhotos loop completes, Lightroom Classic takes the following clean-up actions:
+¥ If the photo files were rendered into a temporary folder, Lightroom Classic deletes the folder and its contents.
+¥ If the export was triggered through the Export dialog:
+¥ Plays the export completion sound, if any.
+¥ If any photos failed to export, shows an error dialog that summarizes all of the errors encountered while exporting.
+¥ Creates a temporary "Previous Export" collection with the source photos that were exported.
+These behaviors are not available when an export is initiated by calling LrExportSession directly.
+
+Final processing of rendered photos
+Final processing of rendered photos
+The processRenderedPhotos() service entry allows you to control what happens to each exported photo after it is rendered by Lightroom Classic and after all post-process actions have been applied to it. This is the function that is responsible for transferring the image file to its destination, as defined by your plug-in. The function that you define is launched within a cooperative task that Lightroom Classic provides. You do not need to start your own task to run this function; and in general, you should not need to start another task from within your processing function. (See ÒDefining function contexts and tasksÓ on page 19.)
+processRenderedPhotos = function( functionContext, exportContext ) ...
+end,
+The parameters functionContext and exportContext are instances of LrFunctionContext and LrExportContext respectively, which Lightroom Classic creates and passes to your function.
+¥ Use the function-context object to define cleanup handlers for this call.
+¥ Use the export-context object to gain access to the setting chosen by the user (in exportContext.propertyTable), and the list of photos to be exported.
+¥ Use the export-context object to configure the progress indicator to update as photos are displayed. 
+This would look like this example adapted from the Flickr plug-in:
+local progressScope = exportContext:configureProgress { title = nPhotos > 1 and 
+     LOC( "$$$/Flickr/Publish/Progress=Publishing ^1 photos to Flickr", nPhotos )  or LOC "$$$/Flickr/Publish/Progress/One=Publishing one photo to Flickr", }
+The function that you define typically contains a loop of this form:
+for i, rendition in exportContext:renditions() do
+-- Wait until Lightroom Classic has finished rendering this photo. local success, pathOrMessage = rendition:waitForRender() -- Do something with the rendered photo.
+if success then
+-- when success is true, pathOrMessage contains path of rendered file local uploadStatus, uploadMessage = uploadToSomewhere( pathOrMessage ) if not uploadStatus then rendition:uploadFailed( uploadMessage )
+end
+else 
+-- Report waitForRender failure rendition:uploadFailed( pathOrMessage ) end 
+end
+end
+¥ Lightroom Classic renders the photos in a separate background thread, so it is likely that your upload processing will overlap subsequent rendering operations to some extent.
+¥ The function exportContext:renditions() automatically updates the progress indicator in the upper-left corner of the Lightroom Classic catalog window, using a text message that you set by calling exportContext:configureProgress(). 
+Customizing the Export and Publishing Manager dialogs
+Customizing the export destination
+After Lightroom Classic has completed the rendering of an individual photo for export, and also completed any post-processing of that rendered photo by any selected actions, it completes the export operation by sending the resulting image file to the export-service code, which handles the actual export to the user-selected destination. By default, Lightroom Classic provides export services for a user-selected location in the local file system, or the CD/DVD drive. 
+The drop-down menu at the top of the Export dialog, labeled ÒExport To,Ó gives you a choice of destinations:
+
+Your plug-in can provide an export service that allows the user to choose a different destination, such a remote site, and define how the image files are sent to that destination; by FTP upload, for example.
+A plug-in that includes an Export Service Provider gives the user a further choice of destinations for the export operation. For example, a plug-in can add a web service such as Flickr as the destination, so that the export operation uploads the selected files to Flickr, using the settings that the user selects in the rest of the dialog. When the plug-in is loaded, the user can select the new destination using the up or down arrow at the right.
+If you provide a new export destination, you typically also need to add settings that are meaningful for your customized export operation. Your plug-in can define customizations for other parts of the Export dialog, which are shown when the user selects your Export destination. 
+¥ If your upload operation requires more complex user choices, you can add new sections to the Export dialog, with the UI elements that the user will need to make those choices. See ÒAdding custom sections to the Export or Publishing Manager dialogÓ on page 55.
+¥ The User Presets list at the left can include presets that you define and include with your plug-in, as well as those defined by Lightroom Classic for export operations; see ÒRemembering user choicesÓ on page 58.
+Adding custom sections to the Export or Publishing Manager dialog
+Your plug-in can define one or more sections to be displayed in the Export or Publishing Manager dialog. 
+The custom sections can be shown above or below the Lightroom Classic standard sections for the dialog. 
+To customize the dialog, define a function that returns a table of sections, defined using LrView objects. The function is the value of one of these service entries:
+sectionsForTopOfDialog = function( viewFactory, propertyTable ) ... end, sectionsForBottomOfDialog = function( viewFactory, propertyTable ) ... end,
+NOTE: Similar functions can be defined in a Plug-in Info Provider, to customize the Plug-in Manager dialog, and in an Export Filter Provider, to add a section to the Export dialog when a post-process action is selected. See ÒAdding custom sections to the Plug-in ManagerÓ on page 33 and ÒAdding an export post-process actionÓ on page 42.
+Lightroom Classic passes your function a factory object which allows you to create the LrView objects that define the elements of your sections; that is, UI controls, such as buttons and text, and containers that group the controls and determine the layout. For additional details of the dialog elements you can create with LrView, see Chapter 5, ÒCreating a User Interface for Your Plug-in.Ó
+The function that you define here returns a table of tables, where each table defines one dialog section:
+sectionsForTopOfDialog = function( viewFactory, propertyTable ) return { 
+{ ...section entry ... },
+{ ...section entry ... },
+...
+}
+    } end
+A section entry table defines the contents of an implicit container, which Lightroom Classic creates to hold your view hierarchy. 
+¥ Each section entry sets a title and synopsis for the section; the section is identified by the title text on the left, and is collapsible. When in the collapsed state, the synopsis text is shown on the right: 
+¥ The rest of the table entry creates the UI elements that are shown when the section is expanded. To create the UI elements, use the LrView factory passed to your top-level sectionsFor... function. This process is explained in more detail in Chapter 5, ÒCreating a User Interface for Your Plug-in.Ó
+When adding sections to the Export dialog, the propertyTable parameter for both functions is the property table containing the plug-in and Lightroom Classic-defined export settings. When your plug-in is being used as a publish service provider, the property table contains additional values that tell you about the publishing status; see ÒPublish Service propertiesÓ on page 69.
+You can add your own program data values to this table (see ÒRemembering user choicesÓ on page 58), and create bindings between the UI elements and the data values, so that the UI text is dynamically tied to your plug-in data. This is shown in the example below, and explained more fully in ÒBinding UI values to data valuesÓ on page 96.
+A custom section example
+This sample code creates a section in the destination dialog with two UI controls, an editable text field and a button. These are in a container, a row element which controls the placement of its child nodes, but is not drawn on the screen. 
+The value of the edit field is tied to a data key in the property table. The enabled state of the button is also tied to a data key, so that the button is only enabled when the user types into the edit field, thus setting the data value. 
+In this example, the synopsis text is also dynamic, bound to the same data key as the edit field value. (Currently, you cannot bind the title value.) Notice that for synopsis, you must specify the bound table explicitly. This is because it is not part of the view hierarchy, where the propertyTable is automatically assigned as the default bound table. 
+All of these concepts and techniques are explained more fully and described in more detail in Chapter 5, 
+ÒCreating a User Interface for Your Plug-in."
+sectionsForTopOfDialog = function( viewFactory, propertyTable ) local LrDialogs = import "LrDialogs" -- get the namespaces we need local LrView = import "LrView" local bind = LrView.bind -- a local shortcut for the binding function
+propertyTable.user_text = "" -- add program data, no initial value propertyTable.buttonEnabled = false -- button starts out disabled
+return { -- create section entries { -- first section entry title = "Section title",
+ -- bind the synopsis to a variable for a dynamic description
+ -- of this section that appears when it is collapsed synopsis = bind { key = 'user_text', object = propertyTable },
+-- create the view hierarchy that appears in the open section viewFactory:row { -- create root container node spacing = viewFactory:control_spacing(), -- default spacing
+viewFactory:edit_field { -- create edit field value = bind 'user_text', -- bound to property immediate = true, -- update value w/every keystroke validate = function( view, value ) if #value > 0 then -- check length of entered text
+-- any input, enable button propertyTable.buttonEnabled = true 
+else
+-- no input, disable button propertyTable.buttonEnabled = false 
+end
+return true, value 
+end
+},
+viewFactory:push_button { -- create button enabled = bind 'buttonEnabled',-- enable when property is set title = "My Button", -- text in button
+action = function( button )
+    LrDialogs.message( "You typed: ", propertyTable.user_text) end
+} 
+}
+} 
+        } end
+This code creates this custom section at the top of the Export dialog (when defined by an LrExportServiceProvider entry):
+
+Restricting existing service functionality
+Your service can restrict the built-in services offered by the Export and Publishing Manager dialogs, by hiding some of the built-in sections that are normally displayed, or by limiting the options offered by the dialog.
+A single toggle entry controls whether users can select measurement units:
+
+hidePrintResolution = Boolean	When true, the options for sizing in the Image Sizing section are shown only in pixel units; all mention of print units such as inches, centimeters, and pixels-per-inch are hidden. Default is false.
+
+The rest of the service table entries that restrict existing functionality in the dialog come in positive and negative forms; that is, you can list the features to be included, or you can list the features to be excluded. For each such pair, you can provide only one of the entries, not both. If you provide neither, all default elements in that category appear.
+For example, you can choose which of the built-in sections to display in the dialog. If you use the positive form, you list the sections to be shown: showSections = { 'fileNaming', 'imageSettings' },
+This causes the File Naming and Image Sizing sections to be visible, and hides all of the other built-in sections. If you use negative form, you list the sections to be hidden. For example, this hides the Export Location section, and shows all other built-in sections:
+hideSections = { 'exportLocation' },
+
+Remembering user choices
+These are the service-table entry pairs for each type of restriction:
+Restriction
+Service table entries
+Allowed values
+File formats
+allowFileFormats = { ÕformatÕ[, ...] }, disallowFileFormats = { ÕformatÕ[, ...] },
+These still-photo file formats are recognized:
+JPEG
+PSD
+TIFF
+DNG
+ORIGINAL
+Video file formats are determined elsewhere.
+Color spaces
+allowColorSpaces = { ÕcolorspaceÕ[, ...] }, disallowColorSpaces = { ÕcolorspaceÕ[, ...] },
+These color spaces are recognized:
+sRGB AdobeRGB
+ProPhotoRGB
+Section display
+showSections = {ÕsectionÕ[, ...] }, hideSections = { ÕsectionÕ[, ...] },
+These built-in sections are defined:
+exportLocation fileNaming fileSettings imageSettings outputSharpening metadata video watermarking
+
+¥ When you hide a section, all of the preset values set in that section are excluded from any presets that the user creates when your plug-in is activated.
+¥ If you hide the exportLocation section (the topmost section in the default dialog), Lightroom Classic renders the photos into a temporary location, then deletes that directory and its contents after your processRenderedPhotos function terminates.
+NOTE: In the Lightroom 1.3 SDK, there was an additional option, postProcessing, which was removed in Lightroom 2.0. This section is now only available with the built-in ÒExport to Files on DiskÓ service. If specified, it is ignored by Lightroom 2.0 or newer.
+Remembering user choices
+You typically define properties for your own export or publish operation, whose key names, values, and usage are entirely defined by your plug-in. 
+Some of these are simply transient or local data (see ÒCreating observable property tablesÓ on page 99), but some are intended to be export settings. Export settings (both plug-in-defined and Lightroom Classic-defined) are persistent properties whose values are saved from one invocation of the Export or 
+Remembering user choices
+Publishing Manager dialog to the next, and across Lightroom Classic sessions. The most recent settings values are passed to your initialization function when the plug-in is invoked, to various service-script functions (such as startDialog, sectionsForTopOfDialog, and so on), and to your plug-inÕs termination function.
+To declare persistent properties and their default values, the service definition script for an export service, publish service, or post-process action can return this item:
+
+exportPresetFields	A table of keys and associated default values. These are automatically stored in both Lightroom Classic preferences and Export presets.
+The default values are used only on the first invocation of your plug-in; after that, the previously set values are restored.
+Although export presets are not available for publish-service plug-ins, this description is used to describe which values from the publish service are remembered from one invocation to the next of the Publish Manager dialog.
+
+For example:
+exportPresetFields = {
+	{ key = 'privacy', 	default = 'public' },
+	{ key = 'privacy_family', default = false 	},
+	{ key = 'privacy_friends', default = false 	},
+	{ key = 'safety',	default = 'safe' 	},
+	{ key = 'hideFromPublic', default = false 	},
+	{ key = 'type', 	default = 'photo' },
+	{ key = 'addTags', 	default = '' 	},
+}
+The settings you declare here are automatically saved along with the export settings already defined by Lightroom Classic (see ÒLightroom Classic built-in property keysÓ on page 60). The first time your plug-in is activated, the default value is used to initialize your settings. On the second and subsequent activations, the settings chosen by the user in previous sessions are restored.
+Export presets
+For an export service, the user can choose to save a particular configuration of settings values as an export preset. A preset contains all of the current settings values, including Lightroom Classic-defined fields, plug-in-defined fields, and post-process action-defined fields. It does not contain any publish-specific setting that are shown only in the Publishing Manager dialog.
+If you wish to create a predefined preset for your export-service plug-in, to be loaded along with your plug-in and appear in the Lightroom Classic Presets list, you must:
+1. Make the value selections in the Export dialog.
+2. Use Add to save a User Preset.
+
+3. Right-click (control-click in macOS) on the newly-created Preset to find the preset file. Move the preset file from that folder to the subfolder that you specified using the builtInPresetsDir entry for the LrExportServiceProvider entry in the Info.lua file for your plug-in. 
+Settings for publish services and post-process actions
+Although you can define persistent setting for a publish service using the exportPresetFields item, and those values are saved as part of any publish service the user creates in the Publishing Manager dialog, you cannot associate a preset with a publish service. The settings for the Publishing Dialog cannot be loaded from a preset, they can only be set directly by the plug-in (using defaults or a startDialog callback) or interactively in the UI.
+Similarly, post-process actions cannot have their own presets, but user choices can be remembered if you add an exportPresetFields entry to the actionÕs info.lua file; see ÒDefining a post-process actionÓ on page 46. If the user has chosen to activate the post-process action for a particular export operation, user choices for that action are captured in any preset created for that export service. 
+Lightroom Classic built-in property keys
+Your export operation makes use of the settings that you have defined for your plug-in (see 
+ÒRemembering user choicesÓ on page 58), and can also check any of the Lightroom Classic-defined 
+
+properties, as set in the Export dialog. These are all in the property table passed to your initialization function (see ÒInitialization and termination functions for servicesÓ on page 39). 
+The Lightroom Classic built-in keys apply to specific sections of the Export dialog and Library module window, as follows:
+Export Location section properties
+LR_export_destinationType
+String. The value of the "Export To:" pop-up. One of:
+chooseLater desktop documents home pictures sourceFolder specificFolder tempFolder
+LR_export_destinationPathPrefix
+String. Destination folder.
+LR_export_useSubfolder
+Boolean. True when the "Put in Subfolder" option is checked, false when it is unchecked.
+Cannot be used if destination type is tempFolder.
+LR_export_destinationPathSuffix
+String. Subfolder name. Valid only if use-subfolder is true.
+LR_reimportExportedPhoto
+Boolean. True when the "Add to This Catalog" option is checked, false when it is unchecked.
+Cannot be used if destination type is tempFolder.
+LR_reimport_stackWithOriginal
+Boolean. True when the "Stack With Original " option is checked, false when it is unchecked.
+This is only meaningful if destination type is sourceFolder and use-subfolder is false. Ignored otherwise.
+LR_collisionHandling
+String. The value of the "Existing Files:" pop-up. One of:
+ask rename overwrite skip
+File Naming section properties
+
+	LR_extensionCase	String. The case to use for the file extension. One of:
+One of 
+uppercase lowercase
+LR_initialSequenceNumber
+Number. The initial value for the sequence number, when files are renamed on export using a sequence number.
+LR_renamingTokensOn
+Boolean. When true, the files are renamed on export as described below.
+LR_tokenCustomString
+String. A naming template to use when files are renamed on export.
+LR_tokens
+String. A file-naming pattern. The string is used as the file name, but can contain a pattern within double curly braces which is replaced by information about the photo being exported. For example, the string {{image_name}} is replaced by the file name. See allowed token patterns below.
+Token patterns
+This is the complete list of patterns that are allowed in the LR_tokens string, as presented in the pop-up menu in the File Naming Template dialog:
+Image Name and Custom patterns
+Pattern 
+Replaced by
+{{image_name}} 
+File name
+{{image_filename_number_suffix}}
+File number suffix
+{{image_folder}}
+Folder name
+{{image_originalName}}
+Original file name
+{{image_originalName_number_suffix}}
+Original number suffix
+{{copy_name}}
+Copy name
+{{custom_token}} 
+Custom Text (the value of LR_tokenCustomString)
+Sequence and Date patterns
+
+Pattern 
+Replaced by
+{{naming_sequenceNumber_1Digit}}
+Sequence # (1)
+{{naming_sequenceNumber_2Digits}}
+Sequence # (01)
+{{naming_sequenceNumber_3Digits}}
+Sequence # (001)
+{{naming_sequenceNumber_4Digits}}
+Sequence # (0001)
+{{naming_sequenceNumber_5Digits}}
+Sequence # (00001)
+{{naming_operationSequence_1Digit}}
+Image # (1)
+	{{naming_operationSequence_2Digits}}	Image # (01)
+{{naming_operationSequence_3Digits}}
+Image # (001)
+{{naming_operationSequence_4Digits}}
+Image # (0001)
+{{naming_operationSequence_5Digits}}
+Image # (00001)
+{{naming_sequenceTotal_1Digit}}
+Total # (1)
+{{naming_sequenceTotal_2Digits}}
+Total # (01)
+{{naming_sequenceTotal_3Digits}}
+Total # (001)
+{{naming_sequenceTotal_4Digits}}
+Total # (0001)
+{{naming_sequenceTotal_5Digits}}
+Total # (00001)
+{{date_LocalEncoding}}
+Date (Month DD, YYYY)
+{{date_YYYYMMDD}}
+Date (YYYYMMDD)
+{{date_YYMMDD}}
+Date (YYMMDD)
+{{date_YYYY}}
+Date (YYYY)
+{{date_YY}}
+Date (YY)
+{{date_Month}}
+Date (Month)
+{{date_Mon}}
+Date (Mon)
+{{date_MM}}
+Date (MM)
+{{date_DD}}
+Date (DD)
+{{date_Julian}}
+Julian Day of the Year
+{{date_Hour}}
+Hour
+{{date_Minute}}
+Minute
+{{date_Second}}
+Second
+Metadata patterns
+
+Pattern 
+Replaced by
+{{com.adobe.title}}
+Title
+{{com.adobe.caption}}
+Caption
+{{com.adobe.copyright}}
+Copyright
+{{com.adobe.keywords}}
+Keywords
+{{com.adobe.creator}}
+Creator
+{{com.adobe.creatorJobTitle}}
+Creator Job Title
+{{com.adobe.creatorAddress}}
+Creator Address
+	{{com.adobe.creatorCity}}	Creator City
+Pattern 
+Replaced by
+{{com.adobe.creatorState}}
+Creator State / Province
+{{com.adobe.creatorZip}}
+Creator Postal Code
+{{com.adobe.creatorCountry}}
+Creator Country
+{{com.adobe.creatorWorkPhone}}
+Creator Phone
+{{com.adobe.creatorWorkEmail}}
+Creator E-Mail
+{{com.adobe.creatorWorkWebsite}}
+Creator Website
+{{com.adobe.descriptionWriter}}
+Description Writer
+{{com.adobe.iptcSubjectCode}}
+IPTC Subject Code
+{{com.adobe.intellectualGenre}}
+Intellectual Genre
+{{com.adobe.scene}}
+Scene
+{{com.adobe.location}}
+Location
+{{com.adobe.isoCountryCode}}
+ISO Country Code
+{{com.adobe.headline}}
+Headline
+{{com.adobe.city}}
+City
+{{com.adobe.state}}
+State / Province
+{{com.adobe.country}}
+Country
+{{com.adobe.jobIdentifier}}
+Job Identifier
+{{com.adobe.instructions}}
+Instructions
+{{com.adobe.provider}}
+Provider
+{{com.adobe.source}}
+Source
+{{com.adobe.rightsUsageTerms}}
+Rights Usage Terms
+{{com.adobe.copyrightInfoURL}}
+Copyright Info URL
+{{com.adobe.imageFileDimensions}}
+Dimensions
+{{com.adobe.imageCroppedDimensions}}
+Cropped
+{{com.adobe.exposure}}
+Exposure
+{{com.adobe.focalLength}}
+Focal Length
+{{com.adobe.focalLength35mm}}
+Focal Length 35mm
+{{com.adobe.brightnessValue}}
+Brightness Value
+{{com.adobe.exposureBiasValue}}
+Exposure Bias
+{{com.adobe.subjectDistance}}
+Subject Distance
+	{{com.adobe.ISOSpeedRating}}	ISO Speed Rating
+Pattern 
+Replaced by
+{{com.adobe.flash}}
+Flash
+{{com.adobe.exposureProgram}}
+Exposure Program
+{{com.adobe.meteringMode}}
+Metering Mode
+{{com.adobe.make}}
+Make
+{{com.adobe.model}}
+Model
+{{com.adobe.serialNumber}}
+Serial Number
+{{com.adobe.artist}}
+Artist
+{{com.adobe.software}}
+Software
+{{com.adobe.lens}}
+Lens
+{{com.adobe.GPS}}
+GPS
+{{com.adobe.GPSAltitude}}
+Altitude
+{{com.adobe.rating.string}}
+Rating
+{{com.adobe.colorLabels.string}}
+Label
+{{com.adobe.altTextAccessibility}}
+Alt Text
+{{com.adobe.extDescrAccessibility}}
+Extended Description
+File Settings section properties
+LR_format
+String. File format for still photos. One of:
+JPEG
+PSD
+TIFF
+DNG
+ORIGINAL
+LR_export_colorSpace
+String. Color space. One of 
+sRGB AdobeRGB
+ProPhotoRGB
+LR_export_bitDepth
+Number. Bit depth for TIFF or PSD. Ignored for other formats. One of:
+8 
+16
+The following apply only if LR_format = JPEG
+
+	LR_jpeg_quality	Number. JPEG quality [0..1]. A percentage value where 1 is the 
+best quality.
+LR_jpeg_useLimitSize
+Boolean. True when the ÒLimit File Size To:Ó option is checked, false when it is unchecked.
+When true, Lightroom Classic chooses the quality setting that best matches the desired file size.
+LR_jpeg_limitSize
+Number. When file size is limited, the target size in kilobytes.
+The following apply only if LR_format = TIFF
+
+	LRtiff_compressionMethod	String. TIFF compression method. One of:
+compressionMethod_None compressionMethod_LZW compressionMethod_ZIP
+
+The following apply only if LR_format = DNG
+LR_DNG_previewSize
+String. JPEG preview size. One of:
+none medium large
+LR_DNG_compatability
+Number. The oldest version of Adobe Camera Raw/Photoshop that can read these files. One of:
+33816576 (Camera Raw 2.4 and later)
+67174400 (Camera Raw 4.1 and later)
+67502080 (Camera Raw 4.6 and later)
+84148224 (Camera Raw 5.4 and later)
+LR_DNG_conversionMethod
+String. Image conversion method. One of: 
+preserveRAW convertToLinear
+LR_DNG_embedRAW
+Boolean. True to embed original raw file.
+Image Sizing section properties
+LR_size_doConstrain
+Boolean. True to constrain maximum size.
+LR_size_doNotEnlarge
+Boolean. True to prevent enlargement of the image size.
+LR_size_maxHeight
+Number. Height constraint in units specified by LR_size_units.
+LR_size_maxWidth
+Number. Width constraint in units specified by LR_size_units.
+LR_size_megapixels	Number. When resize type is megapixels, the number of megapixels.
+LR_size_resizeType
+String. The resize method. One of:
+wh (width and height) dimensions longEdge shortEdge megapixels
+For the long-edge and short-edge methods, the value is constrained by LR_size_maxHeight.
+LR_size_resolution
+Number. Resolution, in units specified by LR_size_resolutionUnits.
+LR_size_resolutionUnits
+String. Resolution units. One of:
+inch cm
+LR_size_units
+String. Size constraint units. One of 
+inch cm pixels
+Output Sharpening section properties
+LR_outputSharpeningOn
+Boolean. True when the "Sharpen For" option is checked, false when it is unchecked.
+LR_outputSharpeningMedia
+String. The destination media for the sharpening operation. One of:
+screen matte glossy
+LR_outputSharpeningLevel
+Number. The amount of sharpening. One of 1 (low), 2 (medium), or 3 (high).
+LR_minimizeEmbeddedMetadata
+Boolean. True when the "Minimize Embedded Metadata" option is checked, false when it is unchecked. This property is superseded by LR_embeddedMetadataOption.
+LR_metadata_keywordOptions
+String. Corresponds to the state of the ÒKeywords as Lightroom 
+HierarchyÓ checkbox. Value can be lightroomHierarchical (checked) or flat (unchecked). Ignored when 
+Metadata section properties
+
+LR_minimizeEmbeddedMetadata is true.
+LR_removeLocationMetadata
+Boolean. True when "Remove Location Info" box is checked, false when it is unchecked.  When true, Lightroom Classic strips all GPS location metadata from the photo on export. 
+LR_embeddedMetadataOption
+String. Corresponds to the state of the ÒIncludeÓ popup menu. Value can be copyrightOnly, copyrightAndContactOnly, allExceptCameraInfo, or all.
+Video section properties
+
+LR_includeVideoFiles Boolean. True when the "Include Video Files" option is checked, false when it is unchecked.
+When true, export any video files that are selected. When false, omit those files and show an error message when the export operation is completed.
+Considered only when the plug-in sets canExportVideo = true in its service description script, to indicate that it can 
+process video. Otherwise, this is ignored and the corresponding checkbox is not shown.
+
+NOTE: To dynamically set the format and preset to use for video export, use the method 
+LrExportSettings.applyVideoExportPreset(). See the Lightroom Classic SDK API Reference for details.
+
+Watermarking section properties
+LR_useWatermark
+Boolean. True to enable watermarking on export.
+LR_watermarking_id
+When watermarking is enabled, the unique identifier of the watermark to use. Lightroom Classic assigns this ID when the user creates a new watermarking preset. You cannot modify it, or create a watermarking preset programmatically.
+Post-Processing Filter section properties
+
+LR_exportFiltersFromThisPlugin Table with a key that is the ID of each enabled filter, and a corresponding value that is the index of that filter in the overall filter stack. For example:
+LR_exportFiltersFromThisPlugin.myFirstFilter.1 LR_exportFiltersFromThisPlugin.mySecondFilter.2
+If your plug-in contains multiple filters, this tells you which ones were selected by the user.
+
+General export properties
+This property allows your plug-in to disable the Export button in the Export dialog, or the Save button in the Publishing Manager dialog. 
+
+LR_cantExportBecause	String, optional. If present, describes why an export cannot be initiated. Appears in the bottom of the dialog near the disabled (dimmed) Export or Save button. When the error condition is fixed, your plug-in should set this value to nil. In response to that change, Lightroom Classic enables the Export or Save button (if no other error conditions exist).
+Ignored in versions earlier than 2.0.
+
+Publish Service properties
+These properties are part of the settings table passed to the following callbacks, when they are defined as part of a publish service provider:
+startDialog endDialog
+sectionsForTopOfDialog sectionsForBottomOfDialog
+LR_publish_connectionName
+String. The descriptive name of a connection, as assigned by the user in the Publishing Manager dialog.
+LR_isExportForPublish
+Boolean, read-only. True when the current export operation is part of a publish service, either currently running or being edited in the Publishing Manager. 
+LR_editingExistingPublishConnection
+Boolean. True when the user is editing an existing publish service. 
+LR_publishService
+LrPublishService. When editing an existing publish service, the service object.

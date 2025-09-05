@@ -1,0 +1,255 @@
+8	SDK Sample Plug-ins
+The Lightroom Classic SDK includes some complete sample plug-ins that you can examine and use to familiarize yourself with the plug-in architecture, and with API and Lua usage in the Lightroom Classic SDK.
+The plug-in samples are packaged with the Lightroom Classic SDK, in the folder LR_SDK/Sample Plugins/ (see ÒThe Lightroom Classic SDKÓ on page 7).
+The plug-in script files are written using the Lua scripting language which have the file extension .lua. Each section in this chapter lists the program files and support files that are provided in the plug-in folder for each sample.
+¥ ÒThe FTP Upload sample plug-inÓ on page 154 demonstrates how to use the SDK API to connect to an FTP server and upload images using FTP. 
+¥ ÒThe Flickr plug-inÓ on page 158 demonstrates how to use the SDK API to upload images directly to a Flickr account using HTTP. 
+Each of these samples is an Export Service Provider, extending Lightroom Classic's Export dialog by adding a new export destination. The plug-ins define their own export settings, as needed for their operations, and add one or more sections to the Export dialog that allow the user to make settings choices for the export operation. 
+In addition, the samples demonstrate how to define and use independent dialogs for confirmations and actions.
+¥ ÒMetadata and filtering samplesÓ on page 165 demonstrate additional types of standard plug-in functionality. These show how to create Lightroom Classic-specific metadata and use it together with other features, such as customizing the Plug-in Manager, creating dialog boxes, and creating an Export Filter Provider that accesses custom metadata.
+¥ ÒPost-processing samplesÓ on page 168 demonstrate more types of post-processing that can be accomplished with an Export Filter Provider.
+¥ ÒWeb engine sampleÓ on page 170 demonstrates a different type of plug-in, a web engine, by creating a simple HTML gallery. 
+     153
+The FTP Upload sample plug-in
+The FTP sample plug-in demonstrates how to customize the Export dialog with an Export Service Provider that exports images to a remote export destination. The plug-in allows you to upload images directly to an FTP Server.
+Plug-in 	The FTP plug-in folder is LR_SDK/Sample Plugins/ftp_upload.lrdevplugin 
+files
+Info.lua
+Information file that describes the plug-in to Lightroom Classic.
+FtpUploadExportServiceProvider.lua
+The service definition file.
+FtpUploadExportDialogSections.lua
+Defines the initialization routes and customizations for the Export dialog.
+FtpUploadTask.lua
+Uploads the images to the FTP Server.
+The following steps show how to use the FTP plug-in and guide you through exporting images to an FTP server.
+Bring up the FTP plug-in 
+1. Use the Plug-in Manager to add the plug-in, found in the Lightroom Classic SDK samples folder: 
+LR_SDK/Sample Plugins/ftp_upload.lrdevplugin.
+2. In the Lightroom Classic Library module, make sure you have at least one image available for export, then choose File > Export to bring up the Export dialog.
+3. Use the Export destination list at the top of the Export dialog to select the FTP Upload plug-in: 
+
+This loads the FTP plug-in and displays the additional FTP Server section it defines for the Export dialog.
+
+Configure the connection
+1. In the FTP Server section of the Export dialog, bring up the Destination pop-up menu and choose Edit. 
+
+This displays the configuration dialog for the FTP server settings. 
+
+2. Fill out the configuration section:
+¥ Server: Enter the name of the FTP server you wish to connect to, for example: 
+myftpserver.adobe.com. You do not need to enter the protocol.
+¥ Username: Enter the username you use to log into your FTP Server.
+¥ Password: Enter the password you use to log into your FTP Server. If you wish, check the ÔStore password in presetÕ checkbox.
+¥ Protocol: Select the protocol from the drop down menu. The default is FTP.
+¥ Port: If your FTP servers uses a port other than port 21, enter the number.
+¥ Server Path: If you need to add the path to your home folder on the FTP server, you can enter the path, or you can click Browse to browse the remote file system. 
+
+Navigate to your desired folder and click Select. This returns you to the FTP Configure File Transfer dialog.
+3. To store this configuration in a preset, bring up the Preset popup and select Save Current Settings as new Preset.
+
+In the resulting dialog, enter a name for your preset and click Create. Lightroom Classic connects to your FTP server and displays a Browse dialog. 
+4. Click OK. This returns you to the Export dialog.
+5. If you want to upload your images to a subfolder within your home folder, select the Put in Subfolder checkbox in the FTP Server section of the Export dialog. 
+This enables the text field, where you can enter the folder name. The default subfolder name is ÔphotosÕ. You can enter another single folder name, or create a subfolder hierarchy be entering the path; for example myphotos/myotherfolder/. 
+If the folder does not exist on the FTP server, it is created. 
+The bottom the FTP Server section of the Export dialog displays the full path to which your images will be uploaded at. 
+
+Establish the connection
+1. Click Export at the bottom of the Export dialog to begin the export operation.
+2. A progress indicator appears in the upper-left corner of the Lightroom Classic catalog window, which allows you to monitor the progress of the Export operation.
+ 
+
+
+The Flickr plug-in
+This is more than a sample; it is most of the source code to the plug-in that Lightroom Classic uses to implement its built-in Flickr support. The source code demonstrates how to customize the Publish experience with a Publish Service Provider that uploads photos to the Flickr web service. It also provides examples of other aspects of Lightroom Classic's extensibility and the SDK in general, such as:
+¥ Creating plug-in-defined preset fields and user presets 
+¥ Binding settings values to UI components
+¥ Localizing strings
+Plug-in 	The Flickr plug-in folder is LR_SDK/Sample Plugins/flickr.lrdevplug-in 
+files
+Info.lua
+Information file that describes the plug-in to Lightroom Classic.
+FlickrExportServiceProvider.lua
+The service definition file.
+FlickrExportDialogSections.lua
+Defines the initialization routes and customizing for the Export dialog.
+FlickrPublishSupport.lua
+Defines the publishing operations for publication to Flickr.
+FlickrAPI.lua
+Handles Flickr requests and responses.
+FlickrUser.lua
+Manages the Flickr user account and authentication.
+The Flickr API
+The Flickr plug-in makes use of the services API which Flickr provides. The Flickr API offers many callable methods, several of which are used in this sample. For information about the Flickr API, see http://www.flickr.com/services/api; in particular, these sections discuss services that are used here:
+Flickr API Home
+http://www.flickr.com/services/api
+Authentication
+http://www.flickr.com/services/api/auth.spec.html
+Frob
+http://www.flickr.com/services/api/flickr.auth.getFrob.html
+Auth Tokens
+http://www.flickr.com/services/api/flickr.auth.getToken.html
+Flickr plug-in walkthrough
+These steps guide you through authorizing Lightroom Classic with a Flickr account and publishing images.
+1. In the Lightroom Classic Library module, make sure the Publish Services panel is open, and shows the Flickr service. 
+	¥	If the Flickr service does not appear, go to the Plug-in Manager and enable the Flickr plug-in.
+2. In the Publish Services panel, click Set Up next to the Flickr entry. This shows the Flickr plug-inÕs extensions to the Publishing Manager:
+
+3. If it is not already selected, select the Flickr publish services at the left. 
+The plug-inÕs Publish Service Provider defines text for the top section that shows when the service is selected, and adds new sections to the dialog. Notice that is also adds a status message at the bottom, next to the Plug-in Manager button.
+4. In the Flickr Account section of the Publishing Manager, click Log In. 
+This invokes a dialog that informs you that you must authorize Lightroom Classic in order for the plug-in to correctly upload images. This dialog is defined by the plug-in code in FlickrAPI.lua. 
+
+Click Authorize. 
+5. The plug-in brings up the default browser, which displays a web page where you must log into your Flickr account. Log in with the correct Flickr username and password for the account.
+When you have finished logging into Flickr and agreed to allow Lightroom Classic access, it shows a web page stating that the application is authorized.
+6. Return to Lightroom Classic and click Done. This returns you to the Publishing Manager dialog.
+¥ Once you have logged in, notice that the Log In button in the Flickr Account section has changed to Switch User.
+	7.	Click Save to establish the new publish service.
+¥ Notice that the new publish service now appears under the Flickr service in the Publish Services panel.
+
+Add photos and publish the collection
+Lightroom Classic has created a default collection named ÒPhotostreamÓ in your new service. So far, there are no photos in it. The next thing to do is add some photos to the publish collection, so you can publish them with your new service.
+1. Select some photos from your catalog and drag them to Photostream in the Publish Services panel.
+2. Click on the Photostream collection to display those photos in a section called ÒNew Photos to Publish.Ó  
+
+3. Notice that these photos are not published until you explicitly ask Lightroom Classic to publish them. To do this, click Publish at the bottom left corner of the screen.
+4. As it does during an export operation, Lightroom Classic renders the photos and uploads them to the service. A progress bar in the top left corner of the screen shows the status of the publish operation.  
+
+5. Once the process is complete, Lightroom Classic show these photos in a new group called ÒPublished Photos.Ó
+ 
+
+Publish modified photos
+A publish service differs from an export service in that it maintains an ongoing relationship between Lightroom Classic and the service (in this case, Flickr). If you make changes to photos that have already been published or delete them, Lightroom Classic attempts to mirror those changes on the service. To see this:
+
+1. Select one of your photos that has been published and make a simple change to it (for example, rotate the photo 90¡). You will see that photo move to the ÒModifiedÓ state.  
+
+2. Click Publish again.
+Lightroom Classic re-exports the photo, replacing the existing photo on the server with the new version. 
+NOTE: Because of limitation in the Flickr API, Lightroom Classic cannot replace photos on a free account. If you attempt to do so, Lightroom Classic ask s if you want to delete the photo and republish it.
+Get feedback from viewers 
+Lightroom Classic's Publish feature allows you to retrieve selected feedback from a web service and display it in Lightroom Classic's Comments panel.  To see this:
+1. Select one of your photos that has been published. 
+2. Right click or CTRL-click on the selected photo and choose Show in Flickr. 
+This takes you to the Flickr web site where you can see the photo. 
+3. Using the Flickr site, enter a comment on your photo. 
+4. Return to Lightroom Classic and click Refresh in the Comments panel.  
+
+After a brief delay, the comment you entered on Flickr appears in the Comment panel.  
+
+Similarly, Lightroom Classic can gather and display ratings given by web site viewers; what constitutes a rating depends on the web service. In the case of Flickr, it is the number of times somebody other than you has marked your photo as a favorite. 
+
+
+Metadata and filtering samples
+These related samples include the following:
+custommetadatasample.lrdevplugin
+Files:
+Info.lua
+CustomMetadataDefinition.lua
+CustomMetadataTagset.lua
+AllMetadataTagset.lua
+DisplayMetadata.lua
+PluginInfoProvider.lua PluginInit.lua
+strings/en/TranslatedString.txt
+Creates custom metadata fields and tagsets for use within Lightroom Classic. Also demonstrates:
+¥ Customization of the Plug-in Manager dialog and plug-in load behavior.
+¥ Localization of display strings using a string dictionary. 
+¥ Creation of a dialog that displays the values of these custom metadata fields for selected photos. 
+metaexportfilter.lrdevplugin
+Files:
+Info.lua
+Metadata.lua
+MetadataExportFilterProvider
+Demonstrates a simple Export Filter Provider by defining a post-process action and a related section in the Export dialog. This action offers the user a choice of metadata values to filter on, and removes all photos that do not match that choice from the export operation. It makes use of shouldRenderPhoto(), and of the metadata fields defined in the previous sample.
+Custom metadata sample walkthrough
+1. Use the Plug-in Manager to add the plug-in, found in the Lightroom Classic SDK samples folder: LR_SDK/Sample Plugins/custommetadatasample.lrdevplugin
+2. In the Metadata panel of the Library module, open the menu at the top left and choose Custom Metadata. 
+
+3. The custom metadata created by the plug-in appears in the metadata panel.
+
+4. Select a photo.
+5. Change the Display Image value to Yes, and the Random String value to Test.
+These values are used by the following sample.
+6. Select several photos in the Library module, including the one that you modified in the step 5 above. 
+7. From the Library menu, choose Plug-in Extras > Custom Metadata Dialog (an item added by this plug-in). 
+8. A dialog defined by this plug-in appears, showing the name of the photo for which you set the Display Image value to Yes:
+
+Metadata filter sample
+1. Use the Plug-in Manager to add the plug-in, found in the Lightroom Classic SDK samples folder: 
+LR_SDK/Sample Plugins/metaexportfilter.lrdevplugin.
+2. Select some photos in the Library module, noting the Title metadata values for one or more.
+3. Open the Export dialog by choosing File > Export. 
+
+4. Notice the entry for this plug-in, Metadata Post Process, in the Post-Process Actions panel.
+5. Open the entry by clicking the gray arrow at the left, select the action, click Insert. 
+
+6. Notice the check mark by the action, which indicates that it has been inserted into the export operation, and the related dialog section at the right, which has been defined by this plug-in.
+
+Post-processing samples
+7. In the new Metadata Export Filter dialog section, choose Title from the drop-down menu, and enter the title of one of your selected photos in the edit text field. 
+
+8. Click Export to start the export operation.
+Only the single picture whose Title value matches the one you entered is exported; all the other photos in your selection are removed from the export operation by this Export Filter Provider.
+Post-processing samples
+
+post-processing that writes XMP metadata.
+Plug-in 
+files	creatorfilter.lrdevplugin	Allows the user to add or modify certain XMP 
+metadata values to photos being exported.
+	Info.lua	The Export Filter Provider information 
+CreatorExternalToolFilterProvider.lua	and definition script. win\LightroomCreatorXMP.exe
+The platform-specific external XMP 
+mac/LightroomCreatorXMP
+application that performs the selected action.
+	languagefilter.lrdevplugin	 Allows the user to update one of the 
+localized values for the Title property in the XMP metadata. The Export Filter Provider information 
+Info.lua
+and definition script.
+LanguageExternalToolFilterProvider.lua
+win\LightroomLanguageXMP.exe	The platform-specific external XMP mac/LightroomLanguageXMP	application that performs the selected 
+action.
+
+The samples creatorfilter.lrdevplugin and languagefilter.lrdevplugin provide additional examples of post processing, using Export Filter Providers. These plug-ins show the typical construction of Export Filter Providers, making use of an external application to process XMP metadata. Together, the samples demonstrate how you can combine multiple post-processing actions, allowing the user to choose one, both, or neither of the actions. 
+The Creator External Tool (defined in creatorfilter.lrdevplugin) also includes the metadata filter logic defined in the ÒMetadata filter sampleÓ on page 166, which excludes files with matching metadata from the export operation. This illustrates how to combine a simple exclusion filter with the external 
+
+
+Post-processing actions walkthrough
+1. Use the Plug-in Manager to add the plug-ins, found in the Lightroom Classic SDK samples folders: 
+LR_SDK/Sample Plugins/creatorfilter.lrdevplugin and LR_SDK/Sample Plugins/languagefilter.lrdevplugin.
+Post-processing samples
+2. Select some photos in the Library module.
+3. Open the Export dialog by choosing File > Export. 
+
+Notice the entry for these plug-ins, Creator External Tool and Language External Tool, in the Post-Process Actions panel. Each plug-in defines one action.
+4. Open the Creator External Tool entry by clicking the gray arrow at the left, select the action, and click Insert (or simply double-click the action).
+The section defined for that action appears, allowing the user to enter a value for the creator-name XMP property. 
+
+Notice that this action also includes the metadata filterÑthat is, it allows the user to exclude photos whose plug-in-defined metadata values match the users choice. The logic for this part is the same as that defined in the ÒMetadata filter sampleÓ on page 166.
+Web engine sample
+5. Select and insert the action under Language External Tool; the section for that action is added, allowing the user to select a language and new value for that languageÕs translation value of the XMP Title property. 
+
+6. Remove one or both of the actions from the processing queue, and observe the changes in the dialog. You can remove an action by double-clicking the name in the Post-Process Actions section, by selecting the action and clicking Remove, or by using the X icon in the upper right corner of the corresponding dialog section.
+7. Try changing the order of the actions using the up and down arrows in the upper right corner of the corresponding dialog section.
+8. With one or both of the actions inserted in the queue, make choices in the dialog sections, and click Export to begin the export operation.
+9. Open the exported photos in any tool that shows XMP metadata and observe the result.
+¥ Any photos you filtered out based on Lightroom Classic metadata values should not have been exported.
+¥ The XMP metadata should reflect the value you entered for Creator, and the translation you entered for Title.
+Web engine sample
+The sample plug-in websample.lrwebengine demonstrates the web-engine, showing how the 
+architecture differs from that of a standard plug-in. It illustrates all of the plug-in parts by creating a simple HTML gallery. 
+manifest.lrweb
+The manifest maps LuaPage source files and template files to Web Gallery HTML output files using a set of commands for different kinds of pages and resource files.
+galleryInfo.lrweb
+Defines the data model and UI for the gallery.
+grid.html header.html footer.html
+Template LuaPages, HTML with embedded Lua and JavaScript code.
+readme.txt
+An explanation of how the sample works
+Plug-in files
+1. Install the plug-in folder, found at LR_SDK/Sample Plugins/websample.lrwebengine, in the Lightroom Classic folder LR_Root/shared/webengines.
+Web engine sample
+2. Start Lightroom Classic, select some photos, and go to the Web module.
+3. Select the web engine defined by this plug-in that appears in the Engine list:
+
+4. The gallery preview appears, showing a filmstrip of small images on one side and a larger version of the selected image on the right.

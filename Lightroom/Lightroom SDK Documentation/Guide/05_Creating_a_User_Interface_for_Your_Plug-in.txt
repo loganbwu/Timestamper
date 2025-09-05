@@ -1,0 +1,742 @@
+5	Creating a User Interface for Your Plug-in
+You can define a user interface to your plug-in with these tools:
+¥ Your plug-in can define one or more custom sections to be displayed in the Plug-in Manager dialog or Export dialog, above and/or below the Lightroom Classic standard sections. The custom sections are displayed when the user chooses your export destination. You define the UI elements of a custom section using LrView objects; see ÒAdding custom dialog viewsÓ on page 84.
+¥ You can call the functions of the LrDialog namespace to display messages, prompts, and errors to users in predefined dialogs. See ÒDisplaying predefined dialog boxesÓ on page 85.
+¥ You can use the functions in the LrDialog and LrView namespaces to create your own dialog boxes. You can display them when users choose your custom menu items, invoke them from tasks, or invoke them in response to selections in controls you have added to the Export dialog. See ÒCreating custom dialog boxesÓ on page 86.
+The LrView class models a node tree, where each node is a UI element, represented by a specific type of LrView object. A node can be a container or parent of other nodes, or a control, an individual UI element such as a checkbox, which displays a value and can allow user input. Containers and controls are arranged in a node tree, or view hierarchy. A view hierarchy has a top-level container node, additional child containers if needed, and leaf nodes that are the controls.
+The LrView namespace and class provides a set of interface elements, with functionality to lay out and localize the display, and a binding mechanism that lets you tie the displayed values to your plug-in data and settings.
+¥ ÒUser interface elementsÓ on page 87 introduces the UI elements you can create with LrView.
+¥ ÒBinding UI values to data valuesÓ on page 96 explains the binding mechanism, with examples of how to create various relationships between your data and your display.
+¥ ÒÒDetermining layoutÓ on page 109 explains the placement options and gives examples of various layout techniques.
+Adding custom dialog views 
+You can create custom sections to be displayed in the Plug-in Manager or Export dialog using these service-script entries:
+sectionsForTopOfDialog = function( viewFactory, propertyTable ) ... end, sectionsForBottomOfDialog = function( viewFactory, propertyTable ) ... end,
+¥ The function that you define here is slightly different for the two dialogs; see ÒAdding custom sections to the Plug-in ManagerÓ on page 33 and ÒAdding custom sections to the Export or Publishing Manager dialogÓ on page 55. 
+¥ For an Export Filter Provider, a very similar function, sectionForFilterInDialog, creates only one section, rather than multiple sections. See ÒDefining a post-process actionÓ on page 46.
+In any case, however, the function must define the UI to be displayed when each dialog-box section is expanded. To do so, use the viewFactory object to construct all of the elements of a view hierarchy.
+     84
+Using dialog boxes
+To create the containment hierarchy, use the view factory to create a container, and within that call, use it to create the child containers and controls:
+viewFactory:group_box {
+...initial property settings... viewFactory:row {-- a row of controls within the box ...initial property settings... viewFactory:static_text { -- a text label, contained in the row ...initial property settings... viewFactory:button { -- a button that responds to a click, contained in the row ...initial property settings...
+...
+Control nodes have properties that define a tooltip for the node, control the visibility, and affect the size, displayed font, and enabled state. Additional properties apply to controls of specific types; for instance, a pop-up menu has an items property, which contains a table of the selectable menu items to display. Each item is in turn a table containing a title (displayed string) and value (the value returned when the item is selected):
+viewFactory:popup_menu { title = "myPopup", items = { -- the menu items
+{ title = "First item", value = 1 },
+{ title = "Second item", value = 2 },
+},
+    value = LrView.bind( "myPopup_value" ), -- the control value size = 'small' },
+¥ The types of containers and controls and their view properties are listed and described in ÒUser interface elementsÓ on page 87.
+¥ Certain properties describe node layout; that is, the sizing and placement of each node with respect to its container and sibling nodes. You can set layout values individually, or use LrView functions to set spacing and margin values for an entire node tree. The layout properties and functions are described in ÒDetermining layoutÓ on page 109.
+¥ Display strings in all containers and controls (generally specified in the title property) can be localized to different languages by using the LOC function to specify the string value; for details, see Chapter 7, ÒUsing ZStrings for Localization.Ó
+Using dialog boxes
+The LrDialogs namespace provides functions that you can use to display simple messages in predefined dialog boxes, or to define a completely customized dialog box. All dialog boxes are modal, meaning that when the dialog is invoked, no other actions can be taken in the Lightroom Classic UI until the dialog is dismissed.
+Displaying predefined dialog boxes
+The predefined dialog boxes display:
+¥ Messages
+Using dialog boxes
+Message dialogs display your text message to the user. They have a single OK button that dismisses the dialog; you can specify the button text. One version has a "DonÕt show again" checkbox, so that the user can prevent this message from being displayed next time the same situation occurs.
+¥ Confirmations and prompts
+In addition to your text message, these dialogs have configurable OK and Cancel buttons. These return different values to the invocation function, which you use to decide on the action to be taken. Again, there is a "DonÕt show again" version. 
+These dialogs are extensible; you can define an optional third button, or a small UI section that you define using LrView; see ÒCreating custom dialog boxesÓ on page 86.
+¥ Errors
+You can display a simple error message with a single OK button, or you can wrap an error dialog around a function context, so that if the wrapped function throws an error, the dialog appears. See ÒUsing function contexts for error handlingÓ on page 17.
+¥ Platform Open File and Save File
+You can bring up the platform-defined file-selection dialogs, so that the user can choose a file system location.
+Creating custom dialog boxes
+You can use the LrDialogs.presentModalDialog() function to create a completely customized dialog box, which you can, for example, invoke from a menu item that your plug-in adds to the Lightroom Classic menu bar, using one of the menu service items: LrExportMenuItems, LrLibraryMenuItems, or LrHelpMenuItems.
+Most of the contents of this dialog are defined by an LrView hierarchy that you define. To build the contents of a custom dialog, obtain a factory object using the LrView namespace function 
+LrView.osFactory(). Like the confirmation dialogs, this dialog automatically contains configurable OK and Cancel buttons.
+You can choose to make this dialog user-resizeable, and can also choose to save its most recent frame size as one of your plug-in settings. The location of the dialog is also saved, if the user moves it.
+The example code in ÒBuilding a basic dialogÓ on page 112 demonstrates how to build and invoke a custom dialog within a function context. 
+Floating (non-modal) dialogs can be created using the LrDialogs.presentFloatingDialog() function in a similar manner to that described for LrDialogs.presentModalDialog() above. For specifics, see the Lightroom Classic SDK API Reference. Use floating dialogs when it is desirable to let the user interact with Lightroom ClassicÕs main window, as well as the dialog itself, while the dialog box is open.
+
+User interface elements
+This section provides details of the types of container and control nodes you can create with an LrView factory object.
+Containers
+Container type
+Description
+Type-specific properties
+view 
+A basic containment frame for a set of controls, with no visual representation.
+
+group_box
+A visible containment frame for a set of controls. Can have a localizable title, which is displayed near the top left corner of the frame.
+title and font: See ÒControl node view propertiesÓ on page 94 show_title: True to display the title. 
+Default is true.
+tab_view
+A container of tabbed pages. The containing tab_view draws the frames for its tab_view_item children, but has no title. The font is used for the tab text of the children.
+font and size: See ÒControl node view propertiesÓ on page 94 value: The identifier of the currentlly selected tab.
+tab_view_item
+A tabbed page in a tab_view. The localizable title text is displayed in the tab.
+title: The display text for the tab.
+identifier: A unique identifier string for this page, used to select the current tab in the parent tab view container. Required. 
+Note: Previous versions of this document incorrectly stated that the identifier could be any type.
+column row
+These group controls for layout purposes, but do not otherwise affect the child nodes. 
+These do not have any non-layout properties, such as visible.
+Otherwise, a column or row is the same as a view with place = vertical or horizontal.
+spacer
+This is a row that contains no child nodes. It is used only for spacing.
+width, height: The size in pixels.
+When creating a dialog or a section for the Plug-in Manager or Export dialog, you generally begin with a top-level container, then, within that container, create its children. Depending on the complexity of your interface, the children can be nested containers (such as a tabbed view that contains tabbed pages), placement containers (rows and columns), or the visible controls (such as text and buttons).
+¥ All containers have the shared view properties listed in ÒGeneral view propertiesÓ on page 93, except as mentioned. 
+¥ All containers except spacer have the layout properties listed in ÒDetermining layoutÓ on page 109.
+Types of containers are:
+
+Controls
+You can use the LrView factory to create visible controls of types common to Windows and macOS interface systems. If the creation function is called within the creation of a container, the control is a child of that container. 
+For complete details of how to create the controls and specify their appearance and behavior, see the Lightroom Classic SDK API Reference. The following table summarizes the available control types and lists their type-specific properties. 
+¥ All controls have the shared view properties listed in ÒGeneral view propertiesÓ on page 93 and ÒControl node view propertiesÓ on page 94.
+¥ All controls have the layout properties and functions described in ÒDetermining layoutÓ on page 109.
+Control type
+Description
+Type-specific properties
+checkbox 
+Displays the title text with a platform-style checkbox button. 
+A checkbox is checked (selected) when its value is equal to its checked_value, and unchecked (deselected) when its value is equal to its unchecked_value. If its value has any other value, the button shows a mixed state.
+See ÒBinding checkbox selectionsÓ on page 100. 
+title: Display label. value: The control value. 
+checked_value: When the box is selected (checked) this becomes the control value. Default is true.
+unchecked_value: When the box is deselected (unchecked) this becomes the control value. Default is false.
+All text properties. See ÒText view propertiesÓ on page 96.
+
+NOTE: The comparison of property values is very specific; the values 0, false, nil, and "" (the empty string) are all distinct.
+color_well 
+Displays a color, and responds to a click by value: The value, an LrColor object.
+displaying a predefined color-selection UI.
+
+combo_box 	An editable text field with a pop-up menu of predefined text values. User can enter any text, or select from the menu. When an item is selected from the menu, its value becomes the control value, and is displayed in the text field.
+See ÒBinding combo box selectionsÓ on page 103.
+items: An array of entry values to appear in the menu, or a function that returns such an array. The values are not localizable in place; to localize, you must build the array with localized strings. 
+
+Control type	Description	Type-specific properties
+
+All edit and text properties. See ÒEdit-field view propertiesÓ on page 94 and ÒText view propertiesÓ on page 96. edit_field	An editable text field. An edit field accepts keyboard input when it has the input focus.
+User input is committed (that is, the value is updated) with every keystroke if immediate is true. If immediate is false, input is committed when the control loses focus. There is a platform difference in the focus behavior:
+¥ In Windows, the control loses focus when the user clicks outside it.
+
+NOTE: When the user types ENTER/RETURN in an edit field, the default button of the containing dialog is invoked. In the case of an Export dialog section, this is the Export button. If you do not want that to happen, disable the default button until the user indicates that input is done.
+password_field
+An editable text field that obscures the entered text, displaying only bullet characters.
+All edit and text properties. See ÒEdit-field view propertiesÓ on page 94 and ÒText view propertiesÓ on page 96.
+picture
+A static image or icon.
+TIP: you can typically get the path to the image file using this function:
+_PLUGIN:resourceId(ÕmyPic.pngÕ)
+value: The full path to the JPG or PNG image file. frame_width: Pixel width of a frame to draw around the image. Default: 0.
+frame_color: An LrColor object. 
+Default is black.
+¥ In macOS, it loses focus when the user uses TAB to shift the focus, not when the user clicks outside the control.
+All edit and text properties. See ÒEdit-field view propertiesÓ on page 94 and ÒText view propertiesÓ on page 96.
+
+popup_menu	A pop-up menu of choices, each with a 
+title and value. When the user pops up the menu and makes a choice, the selected itemÕs title and value become those of the control. The current title text is displayed in the control when the menu is not open.
+See ÒBinding pop-up menu selectionsÓ on page 102 for example of how to specify items and use the value_equal function. title: Display label.
+value: The value of the currently selected item.
+items: A table of items to appear in the menu. Each selectable item entry contains a title and a value. The title text is displayed when the menu is open. An entry of separator=true creates a separator, an unselectable line in the menu.
+value_equal: A function that compares the current control value to each itemÕs value in turn, to determine the selection.
+All text properties. See ÒText view propertiesÓ on page 96. static_text	Text that typically does not respond to user input, such as a label or instructions.
+Although the user cannot change the text, it can still be made dynamic by binding the title to a data value; see ÒBinding UI values to data valuesÓ on page 96.
+title: Display label.
+truncation: Where to truncate the text if needed, "head", "middle", or 
+"tail".
+Control type
+Description
+Type-specific properties
+push_button
+A button that responds to a click with an action. Drawn in platform-standard style with a rounded appearance.
+title: Display label. action: A function defining the action to be taken when the button is clicked, in the form myAction( button ).
+All text properties. See ÒText view propertiesÓ on page 96.
+radio_button
+Displays the title text with a platform-style radio button. The button is checked (selected) when its value is equal to its checked_value, and unchecked (deselected) when its value has any other value, except nil. When the value is nil, the button shows a mixed state.
+Within a container, only one of a set of radio buttons should be selected. Selecting one button should deselect all others in the set. You must enforce this in the way you bind the button values. It is not automatic.
+See ÒBinding radio button selectionsÓ on page 101. 
+title: Display label. value: The control value. checked_value: A value that indicates the selected state.
+slider
+A draggable ÒbugÓ that changes an associated numeric value.
+value: The current numeric value.
+min: The low end of the range. max: The high end of the range. integral: True to change only by integer increments. Default is false.
+selectable: True to make text selectable (in macOS only). alignment: Text alignment, "left", 
+"center", or "right". text_color: An LrColor object. Default is black.
+mouse_down: A function called in response to this event; takes one argument, the view object that was clicked.
+All text properties. See ÒText view propertiesÓ on page 96.
+
+Control type
+Description
+Type-specific properties
+separator
+Draws a line across its container, but has no other behavior. The line is always 2 pixels in width, and is drawn either vertically or horizontally, depending on the fill value. If both values are set, the larger value determines the direction of the line.
+fill_horizontal: The width of the horizontal line, a percentage of the parent's width in the range [0..1].
+fill_vertical: The height of the vertical line, a percentage of the parent's height in the range [0..1].
+The following figures show examples of the various control and container types. The appearance is appropriate to the platform; these examples show some of each.
+Containers and placement controls
+
+Buttons. selection, edit and text controls
+Other controls	
+
+View properties 
+Properties in container and control nodes affect the layout of the controls, and their appearance. Layout properties, and certain view properties, are available to all nodes, both containers and controls. Other view properties are available only in control nodes. Most types of controls have additional view properties specific to their type; these are reflected in the creation parameters.
+General view properties 
+Of the properties that are available in both containers and controls, many are connected with layout behavior; these are discussed separately in ÒDetermining layoutÓ on page 109. The following view properties are available in all containers and controls except the layout containers, row and column:
+View property
+Datatype
+Description
+bind_to_object
+ÑorÑ
+object
+table
+The default bound property table for this object and its children. The default can be overridden at any level of the node hierarchy, or for individual property bindings. See ÒBinding UI values to data valuesÓ on page 96.
+In views created with sectionsForTopOfDialog and sectionsForBottomOfDialog, this is set automatically to the property table passed along with the view factory. This creates a binding between all nodes in the view and the settings table, so that any node can observe any setting. 
+tooltip
+string 
+A help string that appears when the cursor hovers over a container or control.
+Default nil.
+visible
+Boolean
+Determines whether a container or control is shown or hidden. This is not the same as being enabled or disabled; the disabled state is only applied when a control is visible. Default is true.
+¥ When true in a container, the container is visible, and its children are visible according to their individual visibility values. 
+¥ When false in a container, the container and all of its child nodes are hidden, regardless of the value in each child node. 
+¥ When true in a control, the control is visible if its parent is visible. When false, it is hidden even if its parent is visible.
+Value must be true or false; do not use nil.
+TIP: An item still affects layout, even when it is hidden.
+Control node view properties 
+These properties are available in control nodes of all types, but not in containers. 
+Control node property
+Datatype
+Description
+enabled
+Boolean
+When true, the control is drawn normally and is sensitive to user input. When false, it is drawn with a grayed appearance and does not respond to input.
+Value must be true or false; do not use nil.
+font
+string or table
+The font to be used for this control, if it contains text. Can be:
+¥ A string with the name of the font.
+¥ One of these strings:
+<system>
+<system/small>
+<system/bold>
+<system/small/bold>
+¥ A table with the keys name and size (see size property)
+size
+string
+The size of text in the control (if not otherwise determined by the font specification) and of other visual features in non-text controls. For example, affects the track and thumb size in a slider. 
+One of: regular (the default)
+small mini
+Edit-field view properties 
+These properties are available in control nodes that contain editable text; these include edit_field, combo_box, and password_field. 
+Property
+Datatype
+Description
+value
+any
+Value to be displayed. 
+min
+number
+The minimum value allowed. If specified, the field is numeric.
+max
+number
+The maximum value allowed. If specified, the field is numeric.
+	precision	number	The number of decimal places to display. Default is 2. 
+If specified, the field is numeric.
+
+Property
+Datatype
+Description
+alignment
+string
+Alignment of text in frame, left (the default), center, or right.
+text_color
+LrColor
+The color of displayed text. Default is black.
+immediate
+Boolean 
+If true, the field commits its value as the user is typing, and the validate function is called for every change. Default is false, validation occurs on loss of focus.
+auto_completion
+Boolean 
+True if the field should auto complete as the user types. Default is false.
+completion
+table or function 
+A table of strings for completion, or a function that returns a table of strings:
+myCompletion( view, partialWord )
+increment
+number 
+If field is numeric, the amount to increment the value (without SHIFT key). If the precision is 0, default is 1; otherwise default is 0.1. 
+large_increment
+number 
+If field is numeric, the amount to increment the value when the SHIFT key is held down. If the precision is 0, default is 10; otherwise default is 1.
+validate
+function 
+A function called to validate the value:
+myValidate( view, value )
+Returns result, value, message:
+result: (Boolean) True if value was valid. value: (any) The new value. 
+message: (string) An error message to be displayed if result is false.
+value_to_string
+function
+An optional conversion function, called to convert a non-string value to a display string. Takes arguments view (this control) and value (the entered value), and returns a string.
+string_to_value
+function
+An optional conversion function, called to convert the display string to a non-string value. Takes arguments view (this control) and string (the string), and returns a value of the required type.
+wraps
+Boolean
+True to wrap text. Default is true.
+
+Text view properties
+These properties apply to any control that displays text, including popup_menu, static_text, and push_button, as well as the editable text controls.
+Property
+Datatype
+Description
+width_in_chars
+number 
+Calculates the minimum width using this as the number of m characters that should fit. Considered together with width_in_digits. Default is 15 for editable text fields.
+width_in_digits
+number
+Calculates the minimum width using this as the number of 0 digits that should fit. Considered together with width_in_chars. Default is 0.
+height_in_lines
+number
+Calculates the minimum height using this as the number of lines that should fit within the field. 
+Default is 1.
+Binding UI values to data values
+Bindings allow you to make your UI dynamic by specifying a relationship between an LrView objectÕs state and current values in an observable table (see ÒCreating observable property tablesÓ on page 99). This can be the export-settings property table provided by the API, or a table that you create for local program data that you define. 
+When you create a binding, the value or state of the UI element reflects the data value, and the data value reflects the UI element state. This is a two-way relationship; when the binding is established, the data value from the table is pushed to the view, and when the user changes the bound value in the view (by selecting a checkbox, for instance, or entering a value in a text field), the table is notified and the corresponding data key value or values change accordingly. Similarly, when your program changes a value in the table, the bound UI elements are updated to display the new value.
+To create bindings:
+1. Specify a bound table at some level of the view hierarchy. Set the table as the value of the bind_to_object property (you can also use the name object for this property). The bound table of a parent container is inherited by its children, but can be overridden.
+¥ When you create a dialog box, you must set the bound table explicitly. 
+¥ When you create a section for the Plug-in Manager or Export dialog using the sectionsForTopOfDialog or sectionsForBottomOfDialog functions, the settings table for your plug-in is passed to those functions as the propertyTable value. This table contains both export settings that you have defined for your plug-in (see ÒRemembering user choicesÓ on page 58) and Lightroom Classic-defined export settings (see ÒLightroom Classic built-in property keysÓ on page 60).
+The propertyTable is automatically set as the default bound table for all of the UI elements in the view hierarchy for that section. However, the bindable synopsis for the section is not part of the view hierarchy; if you want to make that value dynamic, you must specify the table explicitly. See ÒAdding custom sections to the Plug-in ManagerÓ on page 33.
+2. For each specific UI element, set the value of each dynamic property using the LrView.bind() function to associate that value with a specific key in the bound table.
+¥ The simplest binding simply mirrors the key value and the property value; for instance, setting one value to true sets the other value to true.
+¥ You can use the LrBindings functions to create other common mappings between the bound key value and the view property value. See ÒSpecifying bindingsÓ on page 97.
+¥ For more complex mappings, see ÒTransforming valuesÓ on page 105 and ÒBinding multiple keysÓ on page 107.
+A typical example is a binding between the visible property and a particular settings value, so that a control is only shown when the appropriate setting is present. For example, in the File Settings section of the Export dialog, the control that appears next to the Format combo box changes according to the selected format. 
+
+When JPEG is selected, there is a slider for setting the Quality. When you select the TIFF format, the slider is hidden and a Compression pop-up menu is shown. For PSD and DNG, both of these controls (and their labels) are hidden.
+To accomplish this, Lightroom Classic binds the Format pop-up menuÕs value property to the LR_format setting. Then the visible property of the slider and its label are bound to the JPEG value of LR_format. The example code in ÒChanging the contents of a view dynamicallyÓ on page 114 shows how to use bindings in this way, setting the visibility state of different sets of controls, based on the selection in a pop-up menu. 
+Notice in this example that two control values are related by being bound to the same key value; this is how you bind control values to one another.
+NOTE: Bindings are used to create dynamic text in LrView objects only. The title of a dialog box, for example, is not part of an LrView object, and you cannot bind it. Similarly, the title of an Export dialog section cannot be bound.
+Specifying bindings
+The LrView namespace function LrView.bind() creates a direct association between a key or keys in an observable table and a view property value. Use this function when creating the view or control, to specify the view property value. For example: visible = LrView.bind( "LR_export_useSubfolder" ) Many of the sample plug-ins create a shortcut to the function:
+local bind = LrView.bind -- shortcut for bind() method
+You can then use the shortcut to specify dynamic property values:
+... 
+    viewFactory:static_text { title = bind 'mySetting', ...
+The required argument of LrView.bind() is the key name; by default, this is in the table that is already bound to the UI element; that is, the value of bind_to_object in the same UI element. This is inherited in the view hierarchy, but can be overridden at any level. The keys in the table are treated as Ò.Ó (dot/period) separated hierarchical key-value pairs, e.g. a key such as x.y would bind with the key y in the table bound to key x.
+You can override the bound table for a specific binding by passing the LrView.bind() function a table containing both the key and the table it comes from: visible = LrView.bind { key = "mySetting", bind_to_object = "myTable" } 
+This allows you to bind different properties in one view object to keys in different tables.
+The bound table is typically the export-settings table, since your UI is typically a way for your user to see and set these values. The SDK makes this default case easy for sections that you define for the Export dialog. In views created with sectionsForTopOfDialog and sectionsForBottomOfDialog, the value of bind_to_object for the entire view hierarchy is set automatically to the export-settings table passed along with the view factory. See ÒAdding custom sections to the Plug-in ManagerÓ on page 33.
+Simple bindings
+The simplest binding is between a property in the LrView object and a settings key of the same datatype, and simply keeps the two synchronized. For example: visible = LrView.bind( "LR_export_useSubfolder" )
+In this case, both the local property (visible) and the bound table item (a Lightroom Classic-defined export setting) have Boolean values. Setting the use-subfolder preference to true (in the Export dialog, for instance) makes the control visible.
+For some other common types of binding, you can use an LrBinding function as the value assignment; for example: visible = LrBinding.negativeOfKey( "LR_export_useSubfolder" )
+This binds the property to the opposite of the table value; that is, setting the use-subfolder preference to true hides the control. The binding works in both directions; that is, hiding the control would also set LR_export_useSubfolder to true. This function can be used to negate numeric as well as Boolean values; for example, a value of 2 would become -2.
+Although negativeOfKey() works both ways, and with numeric values, the other LrBinding functions can be used only with Boolean values, and work only in one direction; a change in the bound table sets the bound property value, but not the reverse. The LrBinding functions allow you to:
+¥ Set a Boolean property to the opposite of a Boolean key value, or a numeric property to the negation of a numeric key value (LrBinding.negativeOfKey).
+¥ Set a Boolean property when a key value is or is not present (LrBinding.keyIsNil, keyIsNotNil).
+¥ Set a Boolean property when a key value is or is not equal to a specific value (LrBinding.keyEquals, keyIsNot).
+¥ Set a Boolean property when a set of Boolean keys are either all true, or when any one is true 
+(LrBinding.andAllKeys, orAllKeys); for more information on how this works, see ÒBinding multiple keysÓ on page 107.
+For details of the LrBinding functions, see the Lightroom Classic SDK API Reference.
+Creating observable property tables
+The Lightroom Classic SDK defines a notification mechanism based on observable tables. When a value changes in an observable table (such as the export-settings table), all registered observers (typically LrView objects) are notified. A plug-in uses this mechanism to make UI controls in the plug-inÕs user interface respond to changes in data properties. 
+The LrView objects that define your UI elements in an Export dialog section are automatically registered as observers of the export-settings table that is passed on creation; see ÒAdding custom sections to the Plug-in ManagerÓ on page 33. 
+To use export settings in another context, or to define additional program data, use the function 
+LrBindings.makePropertyTable() to create an observable table, and populate it with your own plug-in settings or any other program data. 
+An observable table must be created with a function context, so that Lightroom Classic can clean up the notifications if anything goes wrong. (See ÒUsing function contexts for error handlingÓ on page 17.) A function context is created using LrFunctionContext.callWithContext(). This passes a 
+function-context object to its main function; you pass that object on to your table-creation function. For example:
+LrFunctionContext.callWithContext("showCustomDialog", function( context ) local properties = LrBinding.makePropertyTable( context ) properties.url = "http://www.adobe.com" -- create a settings value
+    -- add code to take create dialog contents end)
+When you create a new table, it is initially empty. You can explicitly add keys and values, as in the example. However, it is not necessary to add a key to a table before you reference it in a binding; if it is not yet in the table, its value is nil. The example in ÒTransforming valuesÓ on page 105 shows how a controlÕs value is bound to a key that is not yet in the table. When the control first gets a value, the key is put into the table with that value.
+TIP: You can use a naming convention to distinguish program data from persistent export settings (that is, those specified in the exportPresetFields table; see ÒRemembering user choicesÓ on page 58). For example, you might use an underscore prefix, Ò_tempUrl,Ó to indicate a local data property. 
+Adding observers to tables
+You can create a general and flexible response to a change in an observable table by adding an observer. An observer associates a function that you define with a key in the table, so that whenever the key value changes, the function is called.
+
+To receive notification of changes in the table you create, use this function to register an observer of the table:
+propertyTable:addObserver( key, func ) For example:
+LrFunctionContext.callWithContext("showCustomDialog", function( context ) local myPropTable = LrBinding.makePropertyTable( context )
+mypropTable:addObserver( 'mySetting', function( properties, key, newValue ) 
+-- do something when this value changes end )
+-- add code to create dialog contents end)
+The handler function you specify for your observer takes as arguments the observed table (so you can access other data values), the key whose value change triggered the notification (in case you are using the same handler function for multiple keys), and the new value of that key. 
+You can define a function to handle more than one key notification, using the key argument to distinguish which key changed. If you do, you must pass the function to a separate addObserver() call for each key.
+For examples of how and why to add an observer to a table, see ÒBinding combo box selectionsÓ on page 103, and Chapter 9, ÒGetting Started: A Tutorial Example.
+Bindings for selection controls
+Controls that have a selection state include checkboxes, radio buttons, pop-up menus, and (to some extent) combo boxes. You can use bindings to keep track of the selection state, and to create 
+dependencies between what is selected in one of these controls and what is shown elsewhere in the UI, or what actions are taken.
+Binding checkbox selections
+The value property of a radio button or checkbox controls and reflects the current selection state:
+¥ In both, if the user checks the button, the checked_value becomes the new control value. 
+¥ In the checkbox, if the user unchecks the button, the unchecked_value becomes the new control value. 
+EXAMPLE 1:  This example shows how bindings work in checkboxes:
+local LrBinding = import "LrBinding" local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext" local LrView = import "LrView"
+local bind = LrView.bind -- shortcut for bind() method
+LrFunctionContext.callWithContext( 'bindingButtonsExample', function( context ) local f = LrView.osFactory()  -- obtain view factory local properties = LrBinding.makePropertyTable( context ) -- make prop table
+-- create some keys with initial values
+properties.checkbox_state = 'checked' -- for checkbox
+properties.my_value = 'value_1' -- for radio buttons and pop-up menu local contents = f:column { -- create view hierarchy fill_horizontal = 1, spacing = f:control_spacing(),
+bind_to_object = properties, -- default bound table is the one we made f:group_box { title = "Checkboxes", -- (only one here) fill_horizontal = 1, spacing = f:control_spacing(), f:checkbox { title = "Value will be string",
+value = bind 'checkbox_state', -- bind to the key value checked_value = 'checked', -- this is the initial state unchecked_value = 'unchecked', -- when the user unchecks the box, -- this becomes the value, and thus -- the bound key value as well.
+}, f:static_text { fill_horizontal = 1,
+title = bind 'checkbox_state', -- bound to same key as checkbox value
+},
+},
+-- (add radio button container here for example 2)
+-- (add pop-up container here for example 3) local result = LrDialogs.presentModalDialog( -- invoke the dialog
+{ title = "Binding Buttons Example", contents = contents,
+} 
+    ) end )
+Binding radio button selections
+The user cannot uncheck a radio button; a selected button is deselected only when another button in the group is selected. Simply putting the buttons in the same container does not enforce this usage; to arrange it, bind the value of each button in the set to a different value of the same key. 
+EXAMPLE 2: Add this to the previous code for an example of binding in a set of radio buttons:
+f:group_box { -- the buttons in this container make a set title = "Radio Buttons", fill_horizontal = 1, spacing = f:control_spacing(), f:radio_button { title = "Value 1",
+value = bind 'my_value', -- all of the buttons bound to the same key checked_value = 'value_1',
+},
+f:radio_button { title = "Value 2", value = bind 'my_value', checked_value = 'value_2',
+},
+f:radio_button { title = "Value 3", value = bind 'my_value', checked_value = 'value_3',
+},
+f:static_text { fill_horizontal = 1, title = bind 'my_value',
+},
+},
+Binding pop-up menu selections
+The pop-up menu and the menu component of a combo box allow you to specify a set of choices, using an items table; each item entry is a table containing a title and value. The title is localizable display text, that appears in the menu (see Chapter 7, ÒUsing ZStrings for LocalizationÒ). 
+	items = { { title = "First item", 	value = 1 },
+{ title = "Second item", value = 2 }, 
+	{ title = "Third item", 	value = 3 }, },
+The value of the item that the user selects from the menu becomes the controlÕs value. For the pop-up menu, the title becomes the controlÕs title, and is displayed in the control when the menu is not shown. (For the combo box, the displayed text is the value, or the result of the value_to_string function; see ÒEdit-field view propertiesÓ on page 94.)
+EXAMPLE 3: This code fragment adds a pop-up menu to the previous example, with the currently selected value from the menu similarly bound to a static text value:
+f:group_box { title = "Popup Menu", fill_horizontal = 1, spacing = f:control_spacing(),
+f:popup_menu { value = bind 'my_value', -- current value bound to same key as static text items = { -- the menu items and their values
+{ title = "Value 1", value = 'value_1' },
+{ title = "Value 2", value = 'value_2' },
+        { title = "Value 3", value = 'value_3' }, } },
+f:static_text { fill_horizontal = 1,
+title = bind 'my_value', -- bound to same key as current selection
+},
+    }, }
+You can bind the items property to a settings key to create a dynamic menu. However, you can only set the whole menu at once; you cannot bind individual item values.
+EXAMPLE 4: This code binds the currently selected value from a pop-up menu to the same key as an editable text value. The user can change this value by entering any text in the edit field; the entered text shows up immediately as the value of the pop-up control. 
+However, since the user can enter any text, that text might not match the menu items. This code shows how to use the pop-up controlÕs value_equal function to do a case-insensitive comparison of the user-entered value with the item values. The function is called for each item until it returns true, or has gone through all the items.
+¥ If the entered text matches one of the item values (that is, the function returns true), the matching item becomes the selected item in the pop-up menu, and the itemÕs title text is displayed in the pop-up control.
+¥ If the function goes through all the items without finding a match, the pop-up control shows no selection; that is, it appears blank, and the next time the user pops up the menu, none of the items is in the selected state. The entered value remains in the pop-up controlÕs value property.
+local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext" local LrStringUtils = import "LrStringUtils"
+local LrView = import "LrView"
+LrFunctionContext.callWithContext( 'bindingExample', function( context ) local f = LrView.osFactory()
+local properties = LrBinding.makePropertyTable( context ) properties.format = "jpeg" local contents = f:column { spacing = f:control_spacing(), bind_to_object = properties, f:popup_menu { items = {
+{ title = "JPEG", value = "jpeg" },
+{ title = "TIFF", value = "tiff" },
+},
+value = LrView.bind 'format', value_equal = function( value1, value2 ) return LrStringUtils.lower( value1 ) == LrStringUtils.lower( value2 )
+    end, }, f:edit_field { immediate = true,
+value = LrView.bind 'format',
+    }, }
+local result = LrDialogs.presentModalDialog( 
+{ title = "Dialog Example", contents = contents,
+} 
+    ) end )
+Binding combo box selections
+For a combo box, the user can enter text in the edit-field portion, which becomes the new control value. If you select an item from the menu portion, that item value becomes the control value; this provides an input shortcut for the user. Unlike the pop-up menu, the combo box menu items are simple values; if you need to localize them, you must do so when building the item array.
+This example shows how to create a dynamic menu for a combo box that gives previously-entered values as menu choices. This code:
+¥ Binds the value and items of the combo box to data properties storeValue and storeItems.
+¥ Creates an observer for the storeValue property, so that a change in that property (caused by entering a new value in the combo box) calls a function. 
+¥ The observer function checks to see if the current value is already in the items list (stored in storeItems), and if it is not, adds it to the list. 
+¥ Because of the binding, any change the function makes to the storeItems property is automatically reflected in the combo box items.
+local LrBinding = import "LrBinding" local LrDialogs = import "LrDialogs" local LrFunctionContext = import "LrFunctionContext" local LrStringUtils = import "LrStringUtils" local LrView = import "LrView"
+-- Create an observable table within a function context.
+LrFunctionContext.callWithContext( 'bindingExample', function( context ) -- Obtain the view factory. local f = LrView.osFactory() -- Create the observable table. local properties = LrBinding.makePropertyTable( context ) -- Add an observer of the storeValue property. properties:addObserver( 'storeValue', function( properties, key, newValue ) local items = properties.storeItems -- get current items list from this table if items == nil then items = {}
+end
+-- Check if current value is already in the list. local inList
+for i, v in ipairs( items ) do if v == newValue then inList = true break
+end
+end
+-- If not, add it.
+if not inList then items[ #items + 1 ] = newValue
+end
+-- Reset data value with current items list properties.storeItems = items 
+end )
+-- Create the view hierarchy for the dialog. local contents = f:column { spacing = f:control_spacing(),
+bind_to_object = properties, -- bound to the table we created f:combo_box { value = LrView.bind 'storeValue', -- bind to observed key items = LrView.bind 'storeItems', -- bind to data value that the 
+                                            -- observer modifies },
+}
+-- Display the dialog. local result = LrDialogs.presentModalDialog( 
+{ title = "Dialog Example", contents = contents,
+} 
+    ) end )
+Complex bindings
+The LrBinding functions provide a particular, limited set of value transformations. To specify more complex bindings, the argument to LrView.bind() can be a table with these items:
+key 
+A key name in the bound table. The value can be mapped to a value for the local property by the transform function.
+bind_to_object
+ÑorÑ
+object
+Optional. The name of an observable table which overrides the value of the bind_to_object view property.
+transform
+Optional. A function that maps the key or key values to the local property value. See ÒTransforming valuesÓ on page 105. This function is called immediately when the value changes in either the bound view property or the bound table key.
+Here is an example of binding to keys in two different tables in a single view object:
+...
+visible = LrView.bind("myBooleanSetting"), -- simple binding between two 
+   -- Booleans in the default table
+enabled = LrView.bind( { key = "mySetting", -- a single key bind_to_object = mySettingsTable, -- a non-default bound table transform = function( value, fromTable ) -- a mapping function ... 
+ end
+}
+) ...
+Transforming values
+The transformation function that you specify for a binding maps the value of a key in the bound table to a value in the bound property. If the LrBinding functions do not provide mapping that you need, define your own transformation function. It is passed these parameters:
+value: The new value of the key or property that changed.
+fromTable (Boolean): True if the change that triggered this notification was in the bound table, false if the change was in the bound view property. 
+Your function should return the new value for the destination property or key. 
+This simple example creates a slider with a range of 0-110, then reports when the value goes over 100, by using a transformation function. The slider value and the visible property of a text box are bound to the same key. For the text box, the transform function returns true (making visible true) only when the value is over 100.
+sectionsForTopOfDialog = function(viewFactory, propertyTable) return { 
+ { 
+title = "Section Title", viewFactory:slider { min = 0, 
+max = 110, 
+value = LrView.bind "slider_value", title = "slider title", 
+ }, 
+viewFactory:static_text { title = "YouÕre over a hundred", visible = LrView.bind { key = "slider_value", 
+transform = function(value, fromTable) return value > 100 end 
+} 
+} 
+} 
+    } end
+Transformations can work in both directions; changes in the bound property affect the bound table key, and changes in the table key affect the property. If you write a custom function for a one-way transformation, return the value LrBinding.kUnsupportedDirection to indicate that one or the other direction is not supported by your transformation.
+Here is an example of a one-way transformation. This example shows a transformation that makes a text display visible only when text is entered in an edit field. The transform function checks for a value of nil or the empty string in the key to which both controls are bound. This example pops up a dialog, so it needs to create an observable table to hold the data. 
+local LrBinding = import "LrBinding" local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext"
+local LrView = import "LrView"
+LrFunctionContext.callWithContext( 'bindingExample', function( context ) local f = LrView.osFactory()  -- obtain the view factory
+local properties = LrBinding.makePropertyTable( context )  -- make a settings table
+-- the new table is initially empty
+local contents = f:column {-- create view hierarchy for dialog spacing = f:control_spacing(), 
+bind_to_object = properties, -- default bound table is the one we made f:row { fill_horizonal = 1, spacing = f:label_spacing(), f:static_text { title = "Type anything:", alignment = 'right',
+}, f:edit_field { fill_horizonal = 1, width_in_chars = 20, immediate = true,
+value = LrView.bind( 'text' ), -- creates a key 'text'  
+-- the initial value of the new key is nil
+-- setting its value (by entering text in the control)
+-- puts it into the table
+},
+}, f:static_text { place_horizontal = 0.5,
+title = "This is only visible when there is text in the edit field", visible = LrView.bind { key = 'text', -- bind to the same key
+transform = function( value, fromTable ) if fromTable then return value ~= nil and value ~= '' -- check that key has a value
+end
+return LrBinding.kUnsupportedDirection
+end,
+}
+    }, }
+local result = LrDialogs.presentModalDialog( -- invoke the dialog
+{ title = "Binding Example", contents = contents,
+        } ) end )
+Binding multiple keys
+To specify even more complex bindings, between a property in a view object and multiple keys in one or more bound tables, the value part of a binding key-value pair can be a table with these items:
+
+	keys 	A table specifying one or more keys. The table can have these entries:
+¥ key: A key name in the bound table.
+¥ bind_to_object or object: Optional. The name of an observable table which overrides both the default bind_to_object value and this bindingÕs bind_to_object value. 
+¥ uniqueKey: Optional. Because you can specify keys in different tables, the names might overlap. This provides a unique name that is used to identify this key in the values table passed to your operation function.
+
+	bind_to_object	Optional. An observable table which overrides the value of the 
+ÑorÑ	bind_to_object view property. object
+operation
+Required. A function defining an operation to perform on the key values; the result of this operation is passed to the transform function. 
+This function is called when any specified key value changes. The function you define receives three parameters:
+binder: For internal use.
+values: A special look-up table of key-value pairs with the current values of all specified keys. The key portion of the pair uses the uniqueKey name, if provided. (This is not a general-purpose table; you cannot iterate over the values.)
+fromTable (Boolean): True if the change that triggered this notification was in the bound table, false if the change was in the bound view property. 
+This function is not called immediately, but at the end of an event cycle; this means that, if the change is in the bound table, more than one key value can have changed. If changes occur in both directions, the function is called twice.
+transform
+Optional. A function that maps the return value of the operation function to the local property value. See ÒTransforming valuesÓ on page 105.
+This example shows multiple binding. The dialog contains two edit fields, each with its value bound to a different key. A static text box below them has its visible property bound to both keys; the operation makes it true only when both values are equal (meaning that the same text has been typed into both edit fields, or they are both empty).
+local LrBinding = import "LrBinding" local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext"
+local LrView = import "LrView"
+LrFunctionContext.callWithContext( 'multiBindingExample', function( context ) local f = LrView.osFactory() -- get view factory
+local properties = LrBinding.makePropertyTable( context ) -- make empty table local contents = f:column { -- create view hierarchy spacing = f:control_spacing(),
+bind_to_object = properties, -- default bound table is the one we made f:row { fill_horizonal = 1, spacing = f:label_spacing(), f:static_text { title = "Type anything:", alignment = 'right',
+width = LrView.share( 'label_width' ),
+}, f:edit_field { fill_horizonal = 1, width_in_chars = 20, immediate = true,
+        value = LrView.bind( 'text1' ), -- bind to the first key }, }, f:row { fill_horizonal = 1,
+
+spacing = f:label_spacing(), f:static_text { title = "Type more:", alignment = 'right',
+width = LrView.share( 'label_width' ),
+},
+f:edit_field { fill_horizonal = 1, width_in_chars = 20, immediate = true,
+value = LrView.bind( 'text2' ), -- bind to the second key
+},
+},
+f:static_text { place_horizontal = 0.5,
+title = "This is only visible when the text in the two fields are equal", visible = LrView.bind { keys = { 'text1', 'text2' }, -- bind to both keys operation = function( binder, values, fromTable ) if fromTable then return values.text1 == values.text2 -- check that values are ==
+end
+return LrBinding.kUnsupportedDirection
+end,
+},
+    }, }
+local result = LrDialogs.presentModalDialog( -- invoke dialog
+{ title = "Multi Binding Example", contents = contents,
+        } ) end )
+Determining layout
+Both the initial layout of a container, and subsequent automatic layout operations, use a set of parameters set by properties in both the container and its child nodes. These values control the initial layout, and, if the containing dialog is resizeable, the way the layout changes if the dialog size changes. 
+Properties control these broad categories of placement and sizing:
+¥ Spacing values determine how child nodes are placed relative to one another. See ÒRelative placement of sibling nodesÓ on page 110.
+¥ Margin values determine how a node is placed and sized within its parent node. See ÒPlacement within the parentÓ on page 110.
+¥ You can obtain default layout values using ÒFactory functions for obtaining layout valuesÓ on page 111.
+Relative placement of sibling nodes
+These properties determine how child nodes are placed relative to one another. They apply only to containers. A margin is the interior margin of a container, the distance between the edge of the container and its children; spacing is the distance between children. All numeric values are in pixels.
+Layout property
+Datatype
+Description
+place
+string
+The placement style. One of:
+vertical (default): Children are placed in a column top down. horizontal: Children are placed in a row left to right. overlapping: Children are placed on top of one another.
+margin
+number
+Space around children within the containing node.
+margin_horizontal
+number
+Overrides the margin value for both the right and left sides.
+margin_vertical
+number
+Overrides the margin value for both the top and bottom.
+margin_left, margin_right
+number
+Overrides the margin value for the left and right sides, respectively.
+margin_top, margin_bottom
+number
+Overrides the margin value for the top and bottom, respectively.
+spacing
+number
+The amount of space placed between each child. 
+Ignored if place is overlapping.
+Placement within the parent
+Layout property
+Datatype
+Description
+fill_horizontal fill_vertical
+number 
+[0..1]
+The amount of free space that the node is sized to fill in the given direction. These determine how a node is sized relative to its siblings. 
+These can be set on any view or control. These properties determine how child nodes are placed and sized within the parent node. All numeric values are percentages, between 0 and 1.
+
+No node is made smaller than its minimum size. Each childÕs fill size is first treated as a proportion of the total space desired; that is, 0.25 makes the node 25% of the parentÕs size.
+If any of the child node fill needs cannot be met, they are given a percentage of the extra space in the proportion to how much they specified. For instance, if three nodes specify 0.2, 0.2, and 0.4, and there is not enough extra space, the nodes get 25%, 25% and 50% of the extra space that is available.
+Layout property
+Datatype
+Description
+fill
+number 
+[0..1]
+The default fill value, if a specific horizontal or vertical value is not provided.
+place_horizontal place_vertical
+number 
+[0..1]
+The place properties determine how a node is placed in any extra space within its parent node; that is, extra space available after the fill properties have been considered. The percentage value determines how much of the extra space is placed to the left or above the node. Space allocated on a first-come first-served basis; if the first child has a place_horizontal value of 1, it consumes all of the extra horizontal space and there is none left for its siblings.
+width height
+number
+The minimum size for this node in pixels, when it is automatically resized.
+If both are specified, the minimum size for the node is not automatically calculated. If only one is specified, the minimum size can be calculated in the other direction. 
+Factory functions for obtaining layout values
+The LrView factory object defines a set of functions that you can use to obtain appropriate values for the layout properties of individual containers and controls. For example, this sets a spacing property to a recommended value for a control that is used either as a label or as the labeled object: spacing = viewFactory.label_spacing()
+Call these functions from the view factory passed to the sectionsForTopOfDialog or sectionsForBottomOfDialog function, or obtained using the LrView namespace function LrView.osFactory(). 
+Default layout function
+Description
+dialog_spacing()
+The number of pixels between elements that is appropriate for top-level items in a dialog, such as views or group boxes.
+control_spacing()
+The number of pixels between controls or groups of controls.
+label_spacing()
+The number of pixels between a label and its control.
+Layout examples
+The following examples show how to build a basic dialog with an initial layout, how to make labels line up properly, and how to set the dialog up to take advantage of automatic layout on resize.
+Building a basic dialog 
+The following code creates a basic dialog within a function context. (See ÒUsing function contexts for error handlingÓ on page 17.)
+¥ It creates a properties table with a plug-in defined property, url, which contains a URL.
+¥ It defines the contents of the dialog box using an LrView factory: a label, and an edit field that shows the property value.
+¥ It invokes a modal dialog with LrDialogs.presentModalDialog(), passing in the defined view. Based on the result of the invocation, it opens the web page using LrHttp.
+
+This code demonstrates a very simple layout, where the topmost and only container is a row view, which uses default values to place its two children, a label and an edit field.
+local LrBinding = import "LrBinding" local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext" local LrHttp = import "LrHttp" local LrView = import "LrView"
+LrFunctionContext.callWithContext( 'dialogExample', function( context ) local f = LrView.osFactory()  --obtain a view factory
+local properties = LrBinding.makePropertyTable( context ) -- make a table properties.url = "http://www.adobe.com" -- initialize setting local contents = f:row {   -- create UI elements spacing = f:label_spacing(),
+bind_to_object = properties,  -- default bound table is the one we made f:static_text { title = "URL", alignment = 'right',
+},
+f:edit_field { fill_horizonal = 1, width_in_chars = 20, 
+        value = LrView.bind( 'url' ),-- edit field shows settings value }, }
+local result = LrDialogs.presentModalDialog(  -- invoke a dialog box
+{ title = "Go to a URL", 
+contents = contents,   -- with the UI elements
+        actionVerb = "Go",   -- label for the action button } )
+if result == 'ok' then -- action button was clicked
+    LrHttp.openUrlInBrowser( properties.url ) end
+end )
+Making labels line up
+Typically, a dialog contains vertical sets of controls and their labels. The following code demonstrates how make right-aligned labels on the left side of the dialog, with matching left-aligned controls on the right side.
+
+To make this happen, the example uses the alignment property and the LrView.share() function.
+¥ The alignment property determines whether a control is right-aligned, left-aligned, or centered. Since at least one of these labels is wider than the text it is showing, the labels need to be right-aligned. Labels should generally be right-aligned in any case, because if the dialog is translated, the size of the text changes.
+¥ The namespace function LrView.share() binds a property value to an identifier that has no value of its own, but indicates that this property value is to be shared across the hierarchy with other properties that share the same identifier. In this case, the width of both labels is shared because they use the same identifier, label_width. When layout occurs, the largest width value of the two labels is used as the width for both of them.
+local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext"
+local LrView = import "LrView"
+LrFunctionContext.callWithContext( 'bindingExample', function( context ) local f = LrView.osFactory() -- obtain view factory local contents = f:column {  -- define view hierarchy spacing = f:control_spacing(), f:row { spacing = f:label_spacing(), f:static_text { title = "Name:", alignment = "right",
+width = LrView.share "label_width", -- the shared binding
+}, f:edit_field { width_in_chars = 20,
+},
+}, f:row { spacing = f:label_spacing(), f:static_text { title = "Occupation:", alignment = "right",
+width = LrView.share "label_width", -- the shared binding
+}, f:edit_field { width_in_chars = 20,
+},
+    }, }
+local result = LrDialogs.presentModalDialog( -- invoke the dialog
+{ title = "Dialog Example", contents = contents,
+} 
+    ) end )
+Changing the contents of a view dynamically
+This simple example of dynamic layout shows one set of controls and hides another set, based on the selected value in a pop-up menu. The dialog contains the popup and three views, each containing an alternate set of controls. When the user makes a selection in the pop-up menu, one of the views is shown, and the other two are hidden. For example:
+
+This technique makes use of the overlapping placement style, and demonstrates binding of a property in one node to a property in another, so that changing one also changes the other.
+The overlapping value for the place property causes all of the children of a node to be placed in the same space. The parent views are made big enough to enclose the largest child in any view, and all of the children are placed within that space.
+If all of the children were visible at the same time, they would display on top of one another. To make sure only one view is visible at a time, we bind the visible value of each alternative view to a unique value of the pop-up menu. When the user makes the selection that has this value, the view bound to that value is shown, and the other views (bound to different values) are hidden.
+¥ You only need to set the visibility of the parent view; when the parent is hidden, all of its child nodes are also hidden, regardless of their individual visibility settings.
+¥ The LrBindings.whenKeyEquals() function sets visible to true only when the specified value of the bound property is set. You could choose to bind the true value to, for example, a logical OR or AND of several key values.
+This example creates the overlapping views shown in the figure, where the controls shown below the format pop-up depend on the selection in the pop-up menu.
+local LrBinding = import "LrBinding" local LrDialogs = import "LrDialogs"
+local LrFunctionContext = import "LrFunctionContext"
+local LrView = import "LrView"
+LrFunctionContext.callWithContext( 'bindingExample', function( context ) local f = LrView.osFactory()  -- obtain the view factory
+local properties = LrBinding.makePropertyTable( context ) -- make settings table
+-- add some keys with initial values properties.format = "jpeg"   properties.jpeg_quality = 80 properties.tiff_compression = "none"
+local contents = f:column { -- define the view hierarchy spacing = f:control_spacing(),
+bind_to_object = properties,  -- default bound table is the one we made f:popup_menu { items = {
+{ title = "JPEG", value = "jpeg" },
+{ title = "TIFF", value = "tiff" },
+},
+value = LrView.bind 'format', -- bind selection to the format key
+},
+f:column { -- place two views in the same space place = "overlapping",
+-- JPEG view f:view {
+-- shown only when format selection is JPEG visible = LrBinding.keyEquals( "format", "jpeg" ), margin = 3, f:row { spacing = f:label_spacing(), f:static_text { title = "Quality:",
+}, f:slider { min = 0, max = 100,
+value = LrView.bind 'jpeg_quality', -- sets a JPEG value fill_horizontal = 1, place_vertical = 0.5,
+}, f:edit_field { width_in_digits = 3, min = 0, max = 100, precision = 0,
+    value = LrView.bind 'jpeg_quality', -- sets a JPEG value },
+},
+},
+-- TIFF view f:view {
+-- shown only when format selection is TIFF visible = LrBinding.keyEquals( "format", "tiff" ), margin = 3, f:row { spacing = f:label_spacing(), f:static_text {
+title = "Compression:",
+}, f:popup_menu { items = {
+{ title = "None", value = 'none' },
+{ title = "LZW", value = 'lzw' },
+{ title = "ZIP", value = 'zip' },
+},
+    value = LrView.bind 'tiff_compression',-- sets a TIFF value },
+},
+},
+    }, }
+local result = LrDialogs.presentModalDialog( -- invoke the dialog
+{ title = "Dialog Example", contents = contents,
+} 
+    ) end )

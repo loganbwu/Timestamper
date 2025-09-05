@@ -1,0 +1,63 @@
+The Lightroom Classic SDK
+Preface
+The Adobe¨ Photoshop¨ Lightroom¨ Classic Software Development Kit (SDK) is a scripting interface to 
+Lightroom Classic that allows you to extend and customize Lightroom Classic functionality. Use the SDK 
+API to write plug-ins for Lightroom Classic. This release allows you to customize the behavior of Lightroom ClassicÕs export and publish operations, define Lightroom Classic-specific metadata for photos, and create customized HTML web galleries.
+The Lightroom Classic SDK
+The Adobe Photoshop Lightroom Classic SDK is available for download from: 
+https://www.adobe.io/apis/creativecloud/lightroomclassic.html
+The SDK contains these elements (paths are relative to the location that you choose during installation):
+LrC_SDK/Manual/Lightroom Classic SDK Guide.pdf
+This programming guide.
+LrC_SDK/API Reference/index.html
+The home page for a complete API reference in HTML format. 
+LrC_SDK/Sample Plugins/
+Sample code that demonstrates plug-in development.
+For details of what these do and how to use them, see 
+Chapter 8, ÒSDK Sample Plug-ins.Ó
+flickr.lrdevplugin ftp_upload.lrdevplugin
+These samples demonstrate the Service Provider interface. 
+¥ The first creates a service to upload selected photos to Flickr using Lightroom ClassicÕs Publish Manager service.
+¥ The second creates a service that uploads photos to an FTP server, using a customized Export dialog. 
+custommetadatasample.lrdevplugin	This sample demonstrates the creation of Lightroom Classic-specific metadata, and the customization of the Plug-in Manager dialog and behavior.
+The sample creates custom metadata fields for use within Lightroom Classic, and a dialog that displays the values of those metadata fields for selected photos. It also demonstrates how to add menu items.
+About this document
+
+	metaexportfilter.lrdevplugin	Demonstrates the Export Filter Provider by defining a 
+post-process action and a related section in the Export dialog. This action offers the user a choice of metadata values to filter on, and removes all photos that do not match that choice from the export operation. There is a predefined function, shouldRenderPhoto(), that helps do this.
+websample.lrwebengine
+Demonstrates the web-engine plug-in by defining a simple HTML gallery. 
+helloworld.lrdevplugin
+This shows the finished code files produced by the walkthrough in Chapter 9, ÒGetting Started: A Tutorial Example.Ó 
+The walkthrough demonstrates the architecture of standard plug-ins, and the basic techniques for creating user-interface controls for Lightroom Classic dialogs and panels.
+mymetadata.lrdevplugin mysample.lrwebengine
+These contain the finished code from the tutorial walkthroughs in Chapter 10 and Chapter 11.
+The Lua language
+The SDK defines a Lua-language scripting API. For guidance on using the Lua language, we recommend reviewing the official Lua web site, http://www.lua.org/, and the book ÒProgramming in Lua, second edition,Ó by Roberto Ierusalimschy. Lightroom Classic uses version 5.1.5 of the Lua language. 
+The Lightroom Classic SDK provides a Lua scripting environment, which extends the Lua languages with an object-oriented infrastructure; see ÒThe Lightroom Classic SDK scripting environmentÓ on page 11. 
+About this document
+This document has the following sections:
+¥ Chapter 1, ÒUsing the Lightroom Classic SDK," provides an introduction to the Lightroom Classic SDK, with the basics of how Lua plug-ins work, and the concepts and terminology of the Lightroom Classic SDK scripting environment.
+¥ Chapter 2, ÒWriting a Lightroom Classic Plug-in," provides an overview of standard plug-in architecture, and explains how to customize the Plug-in Manager dialog and plug-in loading behavior.
+¥ Chapter 3, ÒCreating Export and Publish Services," explains how to use the SDK to create an export plug-in, which customizes the behavior of Lightroom Classic's Export and Publishing Manager dialogs and export processing. 
+¥ Chapter 4, ÒWorking with Metadata," explains how to define customized public or private metadata fields for Lightroom Classic. 
+¥ Chapter 5, ÒCreating a User Interface for Your Plug-in," explains how to create and populate a dialog box or a custom section in the Plug-in Manager dialog or Export dialog with user-interface elements, using the LrView and LrDialogs namespaces.
+About this document
+¥ Chapter 6, ÒWriting a Web-engine Plug-in," explains how to create a Lightroom Classic plug-in that defines a new type of web engine. This type of plug-in uses a slightly different architecture.
+¥ Chapter 7, ÒUsing ZStrings for Localization," explains how to localize your plug-inÕs user interface for different languages.
+¥ Chapter 8, ÒSDK Sample Plug-ins," walks through the installation and usage of the sample plug-ins provided with the SDK.
+¥ Chapter 9, ÒGetting Started: A Tutorial Example," walks through a ÒHello WorldÓ tutorial to help you create your first plug-in.
+¥ Chapter 10, ÒDefining Metadata: A Walkthrough," shows how to define Lightroom Classic-specific metadata properties for your photos.
+¥ Chapter 11, ÒWeb Gallery Plug-ins: A Tutorial Example,Ó shows how to define your own HTML web-engine plug-in.
+Conventions used in this document
+The following type styles are used for specific types of text:
+Typeface Style
+Used for:
+Monospace font
+Lua code and literal values, such as function names.
+Monospace bold
+Points of interest in code samples.
+Monospace italic
+Variables and placeholders.
+Regular italic
+Introduction of terms.

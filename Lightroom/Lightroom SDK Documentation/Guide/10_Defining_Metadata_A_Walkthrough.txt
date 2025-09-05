@@ -1,0 +1,171 @@
+10 Defining Metadata: A Walkthrough
+This chapter shows how a plug-in can define metadata fields that Lightroom Classic can display along with standard metadata for photos, and which you can use as a private data model for plug-in processing. It also illustrates how the private data can be used to customize the Plug-in Manager.
+These concepts and techniques are introduced and explained in more detail in Chapter 3, ÒCreating Export and Publish Services.Ó
+Adding custom metadata
+This simple example plug-in demonstrates how to define your own metadata fields to be associated with photos. Your fields can be displayed in the Lightroom Classic Metadata panel, where users can set or modify their values. You can also define private data for your plug-in, which is not displayed to users.
+First, we will create the framework for the plug-in, which is similar to that for an export plug-in.
+1.	Create a new folder in your chosen directory called myMetadata.lrplugin. 2.	In this folder, create three new files
+Info.lua
+MyMetadataDefinitionFile.lua MyMetadataTagset.lua
+	3.	Edit the Info.lua file to add the following code:
+return {
+LrSdkVersion = 5.0,
+LrToolkitIdentifier = 'sample.metadata.mymetadatasample',
+LrPluginName = LOC "$$$/MyMetadataSample/PluginName=My Metadata Sample",
+LrMetadataProvider = 'MyMetadataDefinitionFile.lua',
+    LrMetadataTagsetFactory = 'MyMetadataTagset.lua', }
+Define metadata fields
+Now we are going to create the custom metadata fields in the definition file.
+4. Open the file MyMetadataDefinitionFile.lua and add the following code as the initial framework:
+return { metadataFieldsForPhotos = { 
+},
+    schemaVersion = 1, }
+The schema-version value provides version control; it can be incremented to notify users of changes to the plug-in. 
+     191
+Adding custom metadata
+5. The metadataFieldsForPhotos table is where we define our new custom metadata fields. 
+Add this first entry to the table:
+metadataFieldsForPhotos = {
+{ id = 'siteId',
+},
+},
+This is the simplest type of field. It does not have any of the properties that make it visible in the Metadata panel, or modifiable by users. It is an internal field that a plug-in can use as private data. 
+Other plug-ins can also access such a field, but they cannot write to it.
+6. Now we will add a field that will be public: 
+metadataFieldsForPhotos = {
+{ id = 'siteId',
+},
+{ id = 'myString', -- add properties
+},
+},
+7. To make this new field available to edit within the Lightroom Classic Metadata panel, we need to add a title and data type:
+metadataFieldsForPhotos = {
+{ id = 'siteId',
+},
+{ id = 'myString',
+title = LOC "$$$/MyMetadataSample/Fields/MyString=My String", dataType = 'string',
+},
+},
+The title property provides a localizable display string to be shown in the Metadata panel. Simply specifying this property makes the field visible. 
+The dataType property tells the Metadata panel how to display the property, so as to make it editable. Because this is a simple string value, it will be shown in an editable text field. This property is optional, and ÒstringÓ is the default type, so the result is the same if you leave it out.
+	8.	Add one more property: 
+metadataFieldsForPhotos = {
+{ id = 'siteId',
+},
+{ id = 'myString',
+title = LOC "$$$/MyMetadataSample/Fields/MyString=My String", dataType = 'string', searchable = true
+},
+},
+Adding custom metadata
+Setting searchable to true allows you to search for images using this custom metadata field. 
+9. Add another entry to the table to define a Boolean field. To do this, we will use the enumerated-value data type.
+{ id = 'myboolean',
+title = LOC "$$$/MyMetadataSample/Fields/Display=My Boolean", dataType = 'enum', values = {
+-- add valid-value entries
+},
+},
+10. Now we will limit the possible values to the strings ÒtrueÓ and ÒfalseÓ.
+{ id = 'myboolean',
+title = LOC "$$$/MyMetadataSample/Fields/Display=My Boolean", dataType = 'enum', values = {
+{ value = 'true',
+title = LOC "$$$/MyMetadataSample/Fields/Display/True=True",
+},
+{ value = 'false',
+title = LOC "$$$/MyMetadataSample/Fields/Display/False=False",
+},
+},
+},
+Because we have declared the value type as enum, the Metadata panel displays this field with a pop-up menu of valid values. Each value has a localizable display string, which appear in the menu. When the user chooses the menu item, the field is assigned the corresponding string value.
+11. Save this file. 
+Define a tagset
+The drop-down menu at the top left of the Metadata panel allows users to filter what is shown in the panel, by selecting a metadata tagset to be displayed. There are predefined tagsets, and you can also create your own. See ÒAdding custom metadata tagsetsÓ on page 75.
+Now that we have defined a set of metadata fields, we will create a tagset for them, so that they can be selected for display, and displayed together in a labeled section of the Metadata panel. Our tagset will also include some predefined sets.
+1. Open the file MyMetadataTagset.lua. 
+2. Edit the file to add this initial code structure:
+return {
+title = LOC "$$$/MyMetadataSample/Tagset/Title=My Metadata", id = 'MyMetadataTagset',
+Using the plug-in
+items = {
+-- add item entries
+    }, }
+¥ The title value is the localizable display string that will show up as the menu item for this tagset.
+¥ The items table provides the specific metadata fields to be included in our tagset. We will add some representative fields. For the complete list of possible field specifiers, see ÒDefining metadata fieldsÓ on page 71.
+3. Add the following entries to the items table, to include a labeled section named Standard Metadata, which displays the predefined filename and folder metadata fields, part of the built-in metadata for Lightroom Classic: 
+items = {
+-- add item entries
+{ 'com.adobe.label', label = LOC "$$$/Metadata/OrigLabel=Standard Metadata" },
+'com.adobe.filename', 'com.adobe.folder',
+'com.adobe.separator',
+},
+This labeled section is followed by a separator.
+4. Add the entries for the custom metadata defined in this plug-in, in another labeled section:
+items = {
+{ 'com.adobe.label', label = LOC "$$$/Metadata/OrigLabel=Standard Metadata" },
+'com.adobe.filename',
+'com.adobe.folder',
+'com.adobe.separator',
+    { 'com.adobe.label', label = LOC "$$$/Metadata/CusLabel=My Metadata" }, 'sample.metadata.mymetadatasample.*', },
+The asterisk wild-card character in the field-name part of the path matches all fields defined by this plug-in. The asterisk can appear only at the end of the field name.
+	5.	Save this file.
+Using the plug-in
+1. Open Lightroom Classic and go to File > Plug-in Manager.
+2. In the Plug-in Manager dialog, click Add. 
+3. Navigate to your new plug-in folder. Check that your plug-in is loaded and running, as shown by a green traffic-light icon, and the text ÒInstalled and runningÓ. (If it is not, check the Plug-in Author Tools section of the Plug-in Manager for a diagnostic message.)
+4. Select your plug-in and click Choose Selected.
+5. In the Library module, show the Metadata panel and click the name at the top to see the drop-down menu. Your new tagset, with the label ÒMy Metadata,Ó should appear at the bottom of the list.
+Using the plug-in
+
+6. Select the My Metadata tagset. 
+The Metadata panel should display the filename and folder fields in a section labeled Standard Metadata, and your custom myString and myBoolean fields in a section labeled My Metadata Sample, with separators between the sections. The fields are shown with their display labels, and an edit or selection control. 
+
+7. Try editing the custom fields. The myString field, labeled My String, has an editable text field for setting the value, and the myBoolean field, labeled My Boolean, has a pop-up menu that shows the allowed values. 
+8. Select the All tagset.
+Notice that your custom metadata now appears at the bottom of the panel, after all of the standard metadata. 
+
+
+Customizing the Plug-in Manager
+You plug-in can define a customized section for the Plug-in Manager dialog, which is displayed on the right when the user selects your plug-in in the list on the left. This section can make use of private data values that you make globally available within the plug-in by defining them in an initialization script.
+Here is an example of adding such a section, using the metadata values we have already defined.
+1. In the Info.lua file, add the entry that identifies the Plug-in Info Provider definition script:
+return {
+LrSdkVersion = 5.0,
+LrToolkitIdentifier = 'sample.metadata.mymetadatasample',
+LrPluginName = LOC "$$$/MyMetadataSample/PluginName=My Metadata Sample",
+LrMetadataProvider = 'MyMetadataDefinitionFile.lua', LrMetadataTagsetFactory = 'MyMetadataTagset.lua',
+    LrPluginInfoProvider = 'PluginInfoProvider.lua', }
+2. Add another line that identifies a URL where the user can go for further information about this plug-in:
+LrPluginInfoUrl = "http://www.mycompany.com",
+This URL will be displayed in the standard Status section of the Plug-in Manager dialog.
+3. Create two new files in the plug-in folder named PluginInfoProvider.lua and PluginManager.lua.
+4. Edit the file PluginInfoProvider.lua to add the basic framework:
+require 'PluginManager'
+return { sectionsForTopOfDialog = PluginManager.sectionsForTopOfDialog, }
+5. The section definition will use variables defined in an initialization script. In the Info.lua file, add the LrInitPlugin entry that identifies the plug-in initialization script:
+return {
+LRSDKVersion = 5.0,
+LrToolkitIdentifier = 'sample.metadata.mymetadatasample',
+LrPluginName = LOC "$$$/MyMetadataSample/PluginName=My Metadata Sample",
+LrInitPlugin = 'PluginInit.lua',
+LrMetadataProvider = 'MyMetadataDefinitionFile.lua', LrMetadataTagsetFactory = 'MyMetadataTagset.lua',
+    LrPluginInfoProvider = 'PluginInfoProvider.lua', }
+6. Create the file PluginInit.lua in the plug-in folder, and edit it to add these variables:
+_G.currentDisplayImage = "no"
+_G.pluginID = "com.adobe.lightroom.sdk.metadata.custommetadatasample" _G.URL = "http://www.mycompany.com"
+The _G prefix here indicates that these variables are globally available within the plug-in.
+7. Edit the file PluginManager.lua to define the function that creates the UI content of the new section. Notice the use of the variables we defined in the initialization script:
+local LrView = import "LrView" local LrHttp = import "LrHttp" local bind = import "LrBinding" local app = import 'LrApplication' PluginManager = {}
+function PluginManager.sectionsForTopOfDialog( f, p ) return {
+-- section for the top of the dialog
+{ title = "Custom Metadata Sample", f:row { spacing = f:control_spacing(), f:static_text { title = 'Click the button to find out more about Adobe', alignment = 'left', fill_horizontal = 1,
+}, f:push_button { width = 150,
+title = 'Connect to Adobe', enabled = true, action = function()
+    LrHttp.openUrlInBrowser(_G.URL) end,
+},
+}, f:row { f:static_text { title = 'Global default value for displayImage: ', alignment = 'left',
+}, f:static_text { title = _G.currentDisplayImage, fill_horizontal = 1,
+},
+},
+},
+        } end
+	8.	Reload and run the plug-in again, as described in ÒUsing the plug-inÓ on page 194.
+When you select the plug-in, the new section appears above the standard Lightroom Classic sections:
