@@ -15,7 +15,8 @@ from .constants import (
     EXIF_LENS_INFO,
     EXIF_OFFSET_TIME,
     EXIF_OFFSET_TIME_ORIGINAL,
-    EXIF_SHUTTER_SPEED
+    EXIF_SHUTTER_SPEED,
+    DONE_ICON
 )
 from .preset_manager import PresetManager
 from .ui_manager import UIManager
@@ -441,6 +442,12 @@ class MainWindow(QMainWindow):
             if row not in self.files_done:
                 item = self.file_list.item(row)
                 item.setData(Qt.UserRole + 1, True) # Mark item as done
+                
+                # Update the filename display to include the tickmark
+                current_text = item.text()
+                if not current_text.startswith(DONE_ICON):
+                    item.setText(DONE_ICON + current_text)
+                
                 self.file_list.model().dataChanged.emit(self.file_list.model().index(row, 0), self.file_list.model().index(row, 0), [Qt.UserRole + 1])
                 self.files_done.append(row)
             last_saved_row = max(last_saved_row, row)

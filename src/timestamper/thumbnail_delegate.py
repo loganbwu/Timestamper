@@ -16,20 +16,4 @@ class ThumbnailDelegate(QStyledItemDelegate):
         # Let the base class handle the default painting
         super().paint(painter, option, index)
 
-        # Check if the item is marked as 'done'
-        is_done = index.data(Qt.UserRole + 1)
-        if is_done:
-            painter.save()
-            
-            # Set a bold font for the checkmark
-            font = painter.font()
-            font.setBold(True)
-            font.setPointSize(font.pointSize() * 2)
-            painter.setFont(font)
-            
-            # Position the checkmark on the left side of the thumbnail
-            # This might need adjustment depending on the icon size and view mode
-            rect = option.rect
-            painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, DONE_ICON)
-            
-            painter.restore()
+        pass
